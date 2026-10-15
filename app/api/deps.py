@@ -12,6 +12,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.core.database import AsyncSessionLocal, set_tenant_context
 from app.schemas.auth import AuthenticatedUser
 from app.services.auth import AuthService
@@ -101,8 +102,15 @@ async def get_tenant_db(
     """
     async with AsyncSessionLocal() as session:
         async with session.begin():
-            # Apply verified tenant context strictly from trusted server identity
-            await set_tenant_context(session, current_user.tenant_id)
+            # Layer B: Database Row-Level Security (RLS) enforcement
+            is_rls_enabled = settings.ENABLE_DB_RLS
+            # Fail-safe: Never allow RLS disable outside lab environment
+            if not is_rls_enabled and settings.APP_ENV.lower() != "lab":
+                is_rls_enabled = True
+
+            if is_rls_enabled:
+                await set_tenant_context(session, current_user.tenant_id)
+
             try:
                 yield session
             except Exception:

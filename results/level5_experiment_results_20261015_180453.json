@@ -1,0 +1,128 @@
+{
+  "level": 5,
+  "title": "TenantShield Level 5 - Envelope Encryption & Crypto-Shredding Verification",
+  "generated_at_utc": "2026-10-15T18:04:53.889103+00:00",
+  "total_experiments_recorded": 11,
+  "all_passed": true,
+  "experiments": [
+    {
+      "test_number": 1,
+      "requirement": "Encryption/decryption round trip returns original content",
+      "timestamp_utc": "2026-10-15T18:04:49.012019+00:00",
+      "outcome": "PASSED",
+      "evidence": {
+        "document_id": "6d64e773-f130-4990-8d24-2b563ed9b238",
+        "status_code": 200,
+        "content_matched": true
+      }
+    },
+    {
+      "test_number": 2,
+      "requirement": "Stored document contains ciphertext rather than plaintext",
+      "timestamp_utc": "2026-10-15T18:04:49.147621+00:00",
+      "outcome": "PASSED",
+      "evidence": {
+        "document_id": "e6228cf8-8fc5-4ccc-9c6e-6b3d8b80f6a8",
+        "content_is_null": true,
+        "nonce_length_bytes": 12,
+        "ciphertext_present": true,
+        "total_plaintext_in_db": 0
+      }
+    },
+    {
+      "test_number": 3,
+      "requirement": "Tampered ciphertext causes authentication failure",
+      "timestamp_utc": "2026-10-15T18:04:49.520181+00:00",
+      "outcome": "PASSED",
+      "evidence": {
+        "document_id": "f508e518-872e-4489-bc11-254171ff46b2",
+        "api_response_status": 404,
+        "no_plaintext_returned": true
+      }
+    },
+    {
+      "test_number": 4,
+      "requirement": "Tampered nonce causes authentication failure",
+      "timestamp_utc": "2026-10-15T18:04:49.782466+00:00",
+      "outcome": "PASSED",
+      "evidence": {
+        "document_id": "43ea232c-9cc5-4f22-902c-f4115fc97b88",
+        "api_response_status": 404
+      }
+    },
+    {
+      "test_number": 5,
+      "requirement": "Copying ciphertext to different tenant ID fails decryption",
+      "timestamp_utc": "2026-10-15T18:04:50.329250+00:00",
+      "outcome": "PASSED",
+      "evidence": {
+        "acme_doc_id": "e4071f9e-983c-4057-a69f-26298d47d4d3",
+        "beta_doc_id": "2849affe-e324-47ba-8729-f0c03dda68e7",
+        "beta_response_status": 404
+      }
+    },
+    {
+      "test_number": 6,
+      "requirement": "Copying ciphertext to different document ID fails decryption",
+      "timestamp_utc": "2026-10-15T18:04:50.790300+00:00",
+      "outcome": "PASSED",
+      "evidence": {
+        "doc_a_id": "5835b18f-8339-451c-89b9-fcf09d6e3773",
+        "doc_b_id": "2b99dac6-1f13-4041-8615-aec38c0a87aa",
+        "status_code": 404
+      }
+    },
+    {
+      "test_number": 7,
+      "requirement": "Tenant A cannot read Tenant B's DEK or decrypt Tenant B's documents",
+      "timestamp_utc": "2026-10-15T18:04:50.831843+00:00",
+      "outcome": "PASSED",
+      "evidence": {
+        "cross_tenant_keys_visible": 0,
+        "wrong_dek_raises_auth_error": true
+      }
+    },
+    {
+      "test_number": 11,
+      "requirement": "Destroying Tenant A key leaves Tenant B unaffected",
+      "timestamp_utc": "2026-10-15T18:04:53.411023+00:00",
+      "outcome": "PASSED",
+      "evidence": {
+        "beta_doc_id": "f3b6a643-039f-4bdd-94f2-8d3ddd9c31e2",
+        "read_status": 200
+      }
+    },
+    {
+      "test_number": 12,
+      "requirement": "Missing or invalid master-key configuration fails safely",
+      "timestamp_utc": "2026-10-15T18:04:53.425398+00:00",
+      "outcome": "PASSED",
+      "evidence": {
+        "empty_key_rejected": true,
+        "short_key_rejected": true,
+        "non_hex_rejected": true
+      }
+    },
+    {
+      "test_number": 13,
+      "requirement": "Existing Level 0-4 regression suite passes",
+      "timestamp_utc": "2026-10-15T18:04:53.764232+00:00",
+      "outcome": "PASSED",
+      "evidence": {
+        "health_status": "healthy",
+        "anon_status": 401,
+        "cross_tenant_denied": 404
+      }
+    },
+    {
+      "test_number": 14,
+      "requirement": "No test or error response leaks plaintext, keys, or cryptographic internals",
+      "timestamp_utc": "2026-10-15T18:04:53.885692+00:00",
+      "outcome": "PASSED",
+      "evidence": {
+        "master_key_leaked": false,
+        "crypto_internals_leaked": false
+      }
+    }
+  ]
+}
