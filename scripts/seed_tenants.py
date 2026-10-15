@@ -1,11 +1,16 @@
 """
-TenantShield - Multi-Tenant Data Seeder
-======================================
-Seeds sample tenants (Acme Corp, Beta Industries) and confidential documents.
-- Tenant creation uses an administrative connection (since tenantshield_app
-  has least-privilege SELECT-only permissions on tenants).
-- Document seeding operates strictly through the restricted application role
-  (tenantshield_app) using transaction-local tenant context.
+TenantShield - Multi-Tenant Data & User Seeder
+==============================================
+Seeds sample tenants, confidential documents, and development users:
+- Acme Corp tenant & Acme user (role: tenant_user)
+- Beta Industries tenant & Beta user (role: tenant_user)
+- TenantShield System tenant & Platform Admin (role: platform_admin)
+
+Requirements:
+- Passwords are strictly hashed with Argon2id before saving.
+- Plaintext passwords are loaded from environment variables or settings defaults.
+- Idempotent execution (skips duplicates or updates safely).
+- Documents are seeded strictly using transaction-local tenant context.
 
 Usage:
     python scripts/seed_tenants.py
@@ -21,90 +26,103 @@ from uuid import UUID
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from sqlalchemy import create_engine, text
+from app.core.config import settings
 from app.core.database import AsyncSessionLocal, tenant_session
+from app.services.auth import AuthService
 
 
-def ensure_tenants_admin() -> tuple[UUID, UUID]:
+def ensure_tenants_admin() -> dict[str, UUID]:
     """
-    Ensures Acme and Beta tenants exist in the database.
-    Attempts administrative connection to create them if missing.
+    Attempts administrative connection to ensure tenants exist.
+    Falls back gracefully if admin credentials are unavailable.
     """
-    admin_url = os.getenv("POSTGRES_ADMIN_URL")
+    admin_url = getattr(settings, "POSTGRES_ADMIN_URL", None) or os.getenv("POSTGRES_ADMIN_URL")
+    tenants = {}
     if not admin_url:
-        return None, None
+        return tenants
 
     try:
         engine = create_engine(admin_url, isolation_level="AUTOCOMMIT")
         with engine.connect() as conn:
-            # Acme Corp
-            res = conn.execute(
-                text("SELECT id FROM tenants WHERE slug = :slug"),
-                {"slug": "acme"},
-            ).fetchone()
-            if not res:
-                res = conn.execute(
-                    text("INSERT INTO tenants (name, slug) VALUES (:name, :slug) RETURNING id"),
-                    {"name": "Acme Corp", "slug": "acme"},
+            tenant_specs = [
+                ("Acme Corp", "acme"),
+                ("Beta Industries", "beta"),
+                ("TenantShield System", "system"),
+            ]
+            for name, slug in tenant_specs:
+                row = conn.execute(
+                    text("SELECT id FROM tenants WHERE slug = :slug"),
+                    {"slug": slug},
                 ).fetchone()
-                print(f"[+] Admin created tenant: Acme Corp (ID: {res[0]})")
-            acme_id = res[0]
-
-            # Beta Industries
-            res = conn.execute(
-                text("SELECT id FROM tenants WHERE slug = :slug"),
-                {"slug": "beta"},
-            ).fetchone()
-            if not res:
-                res = conn.execute(
-                    text("INSERT INTO tenants (name, slug) VALUES (:name, :slug) RETURNING id"),
-                    {"name": "Beta Industries", "slug": "beta"},
-                ).fetchone()
-                print(f"[+] Admin created tenant: Beta Industries (ID: {res[0]})")
-            beta_id = res[0]
-
+                if not row:
+                    insert_res = conn.execute(
+                        text("INSERT INTO tenants (name, slug) VALUES (:name, :slug) RETURNING id"),
+                        {"name": name, "slug": slug},
+                    ).fetchone()
+                    tenants[slug] = insert_res[0]
+                    print(f"[+] Admin created tenant: {name} (slug: {slug})")
+                else:
+                    tenants[slug] = row[0]
         engine.dispose()
-        return acme_id, beta_id
-    except Exception as exc:
-        # Fall back to reading existing tenants as tenantshield_app
-        return None, None
+    except Exception:
+        # Fall back to application connection
+        pass
+    return tenants
 
 
 async def seed_data():
-    print("[*] Checking tenant data...")
-
-    acme_id = None
-    beta_id = None
-
-    # First attempt to read existing tenants as tenantshield_app (SELECT permission)
-    async with AsyncSessionLocal() as session:
-        res = await session.execute(
-            text("SELECT id, slug FROM tenants WHERE slug IN ('acme', 'beta')")
+    if settings.ENVIRONMENT.lower() in ("production", "prod"):
+        print(
+            f"[ERROR] Refusing to seed development data in production environment (ENVIRONMENT={settings.ENVIRONMENT}).",
+            file=sys.stderr,
         )
-        rows = {row.slug: row.id for row in res.fetchall()}
-        acme_id = rows.get("acme")
-        beta_id = rows.get("beta")
-
-    # If tenants are missing, attempt administrative creation
-    if not acme_id or not beta_id:
-        print("[*] Tenants missing. Using administrative setup to provision tenants...")
-        admin_acme, admin_beta = ensure_tenants_admin()
-        acme_id = acme_id or admin_acme
-        beta_id = beta_id or admin_beta
-
-    if not acme_id or not beta_id:
-        print("[ERROR] Could not resolve Acme and Beta tenants. Please run migrations first.", file=sys.stderr)
         sys.exit(1)
 
-    print(f"[*] Acme Corp ID: {acme_id}")
-    print(f"[*] Beta Industries ID: {beta_id}")
+    reset_passwords = "--reset-passwords" in sys.argv
+    print(f"[*] Starting multi-tenant and user seeding (reset_passwords={reset_passwords})...")
 
-    # Seed Acme Documents strictly under restricted role with Acme tenant context
+    # 1. Resolve Tenants
+    admin_tenants = ensure_tenants_admin()
+    tenants = dict(admin_tenants)
+
+    async with AsyncSessionLocal() as session:
+        res = await session.execute(text("SELECT id, slug FROM tenants"))
+        for row in res.fetchall():
+            tenants[row.slug] = row.id
+
+    # If system tenant is still missing, create it if permissions allow
+    if "system" not in tenants:
+        async with AsyncSessionLocal() as session:
+            try:
+                async with session.begin():
+                    res = await session.execute(
+                        text("INSERT INTO tenants (name, slug) VALUES ('TenantShield System', 'system') RETURNING id")
+                    )
+                    tenants["system"] = res.scalar_one()
+                    print("[+] Created tenant: TenantShield System (slug: system)")
+            except Exception:
+                # If cannot insert system tenant, associate admin with acme
+                tenants["system"] = tenants.get("acme")
+
+    acme_id = tenants.get("acme")
+    beta_id = tenants.get("beta")
+    system_id = tenants.get("system", acme_id)
+
+    if not acme_id or not beta_id:
+        print("[ERROR] Acme and Beta tenants must exist before seeding.", file=sys.stderr)
+        sys.exit(1)
+
+    print(f"[*] Acme Tenant ID: {acme_id}")
+    print(f"[*] Beta Tenant ID: {beta_id}")
+    print(f"[*] System Tenant ID: {system_id}")
+
+    # 2. Seed Acme Confidential Documents (strict Acme tenant context)
     async with tenant_session(acme_id) as session:
-        existing_acme_docs = await session.execute(
+        res = await session.execute(
             text("SELECT count(*) FROM documents WHERE tenant_id = :tenant_id"),
             {"tenant_id": str(acme_id)},
         )
-        if existing_acme_docs.scalar_one() == 0:
+        if res.scalar_one() == 0:
             await session.execute(
                 text(
                     "INSERT INTO documents (tenant_id, title, content) VALUES "
@@ -113,17 +131,17 @@ async def seed_data():
                 ),
                 {"tenant_id": str(acme_id)},
             )
-            print("[+] Seeded Acme Corp documents within Acme tenant context (tenantshield_app).")
+            print("[+] Seeded Acme documents under Acme tenant context.")
         else:
-            print("[*] Acme Corp documents already present.")
+            print("[*] Acme documents already present.")
 
-    # Seed Beta Documents strictly under restricted role with Beta tenant context
+    # 3. Seed Beta Confidential Documents (strict Beta tenant context)
     async with tenant_session(beta_id) as session:
-        existing_beta_docs = await session.execute(
+        res = await session.execute(
             text("SELECT count(*) FROM documents WHERE tenant_id = :tenant_id"),
             {"tenant_id": str(beta_id)},
         )
-        if existing_beta_docs.scalar_one() == 0:
+        if res.scalar_one() == 0:
             await session.execute(
                 text(
                     "INSERT INTO documents (tenant_id, title, content) VALUES "
@@ -132,12 +150,84 @@ async def seed_data():
                 ),
                 {"tenant_id": str(beta_id)},
             )
-            print("[+] Seeded Beta Industries documents within Beta tenant context (tenantshield_app).")
+            print("[+] Seeded Beta documents under Beta tenant context.")
         else:
-            print("[*] Beta Industries documents already present.")
+            print("[*] Beta documents already present.")
 
-    print("[SUCCESS] Multi-tenant seeding completed successfully!")
-    return acme_id, beta_id
+    # 4. Seed Development Users with Argon2id Password Hashes
+    user_specs = [
+        {
+            "email": settings.DEV_ACME_USER_EMAIL.lower().strip(),
+            "password": settings.DEV_ACME_USER_PASSWORD,
+            "tenant_id": acme_id,
+            "role": "tenant_user",
+            "name": "Acme User",
+        },
+        {
+            "email": settings.DEV_BETA_USER_EMAIL.lower().strip(),
+            "password": settings.DEV_BETA_USER_PASSWORD,
+            "tenant_id": beta_id,
+            "role": "tenant_user",
+            "name": "Beta User",
+        },
+        {
+            "email": settings.DEV_ADMIN_USER_EMAIL.lower().strip(),
+            "password": settings.DEV_ADMIN_USER_PASSWORD,
+            "tenant_id": system_id,
+            "role": "platform_admin",
+            "name": "Platform Admin",
+        },
+    ]
+
+    async with AsyncSessionLocal() as session:
+        async with session.begin():
+            for u in user_specs:
+                # Check if user already exists
+                check_res = await session.execute(
+                    text("SELECT id FROM users WHERE email = :email"),
+                    {"email": u["email"]},
+                )
+                existing = check_res.fetchone()
+
+                if existing:
+                    if reset_passwords:
+                        hashed_pw = AuthService.hash_password(u["password"])
+                        await session.execute(
+                            text(
+                                "UPDATE users SET hashed_password = :hashed, role = :role, "
+                                "is_active = true, tenant_id = :tenant_id WHERE email = :email"
+                            ),
+                            {
+                                "hashed": hashed_pw,
+                                "role": u["role"],
+                                "tenant_id": str(u["tenant_id"]),
+                                "email": u["email"],
+                            },
+                        )
+                        print(f"[*] Updated existing user credentials (--reset-passwords): {u['email']} (role: {u['role']})")
+                    else:
+                        print(f"[*] User already exists: {u['email']} (role: {u['role']}). Preserving existing credentials.")
+                else:
+                    # Insert new user with Argon2id hash
+                    hashed_pw = AuthService.hash_password(u["password"])
+                    insert_res = await session.execute(
+                        text(
+                            "INSERT INTO users (tenant_id, email, hashed_password, role, is_active) "
+                            "VALUES (:tenant_id, :email, :hashed, :role, true) "
+                            "RETURNING id"
+                        ),
+                        {
+                            "tenant_id": str(u["tenant_id"]),
+                            "email": u["email"],
+                            "hashed": hashed_pw,
+                            "role": u["role"],
+                        },
+                    )
+                    user_id = insert_res.scalar_one()
+                    print(f"[+] Created user: {u['email']} (role: {u['role']}, id: {user_id})")
+
+    print("[SUCCESS] Multi-tenant data and user seeding completed successfully!")
+    return tenants
 
 
 if __name__ == "__main__":

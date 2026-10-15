@@ -1,5 +1,7 @@
 """
 TenantShield Pydantic Schemas
-=============================
-Request and response validation models.
 """
+
+from app.schemas.auth import LoginRequest, TokenResponse, AuthenticatedUser
+
+__all__ = ["LoginRequest", "TokenResponse", "AuthenticatedUser"]

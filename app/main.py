@@ -9,6 +9,8 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api.auth import router as auth_router
+from app.api.documents import router as documents_router
 from app.api.routes import router as system_router
 from app.core.config import settings
 from app.core.database import engine
@@ -52,8 +54,10 @@ def create_application() -> FastAPI:
         allow_headers=["*"],
     )
 
-    # Register System Endpoints (/, /health)
+    # Register Endpoints
     app.include_router(system_router)
+    app.include_router(auth_router)
+    app.include_router(documents_router)
 
     return app
 

@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     DEBUG: bool = Field(default=True, description="Debug mode flag")
     APP_NAME: str = Field(default="TenantShield", description="Application service name")
     APP_VERSION: str = Field(default="0.1.0", description="Application version")
-    HOST: str = Field(default="0.0.0.0", description="Host address to bind the server")
+    HOST: str = Field(default="127.0.0.1", description="Host address to bind the server")
     PORT: int = Field(default=8000, description="Port to bind the server")
 
     # Database Configuration (PostgreSQL 16)
@@ -28,16 +28,24 @@ class Settings(BaseSettings):
     DB_MAX_OVERFLOW: int = Field(default=20, description="SQLAlchemy connection pool max overflow")
     DB_POOL_TIMEOUT: int = Field(default=30, description="SQLAlchemy pool timeout in seconds")
 
-    # Redis Configuration (For future tenant-aware rate limiting)
+    # Redis Configuration (For rate limiting in upcoming levels)
     REDIS_URL: str = Field(default="redis://localhost:6379/0", description="Redis connection URL")
 
-    # Cryptography & Authentication Stubs (For future implementation)
+    # Cryptography & JWT Authentication
     SECRET_KEY: str = Field(
         default="change_this_to_a_secure_random_key_with_at_least_32_characters",
         description="Cryptographic secret key for signing tokens and sessions",
     )
     ALGORITHM: str = Field(default="HS256", description="JWT hashing algorithm")
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(default=60, description="Access token expiration window")
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(default=60, description="Access token expiration window in minutes")
+
+    # Development Seed Credentials (used only by scripts/seed_tenants.py)
+    DEV_ACME_USER_EMAIL: str = Field(default="acme_user@acme.test", description="Acme seed user email")
+    DEV_ACME_USER_PASSWORD: str = Field(default="AcmeSecretPassword123!", description="Acme seed user password")
+    DEV_BETA_USER_EMAIL: str = Field(default="beta_user@beta.test", description="Beta seed user email")
+    DEV_BETA_USER_PASSWORD: str = Field(default="BetaSecretPassword123!", description="Beta seed user password")
+    DEV_ADMIN_USER_EMAIL: str = Field(default="admin@tenantshield.test", description="Admin seed user email")
+    DEV_ADMIN_USER_PASSWORD: str = Field(default="PlatformAdminPassword123!", description="Admin seed user password")
 
     model_config = SettingsConfigDict(
         env_file=".env",

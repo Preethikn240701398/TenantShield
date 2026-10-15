@@ -15,17 +15,23 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 
+from sqlalchemy.pool import NullPool
+
 from app.core.config import settings
 
 # Asynchronous SQLAlchemy Engine using the restricted application role
-engine = create_async_engine(
-    settings.DATABASE_URL,
-    echo=settings.DEBUG,
-    pool_size=settings.DB_POOL_SIZE,
-    max_overflow=settings.DB_MAX_OVERFLOW,
-    pool_timeout=settings.DB_POOL_TIMEOUT,
-    pool_pre_ping=True,  # Ensures dead connections are recycled
-)
+engine_kwargs = {
+    "echo": settings.DEBUG,
+    "pool_pre_ping": True,
+}
+if settings.ENVIRONMENT == "testing":
+    engine_kwargs["poolclass"] = NullPool
+else:
+    engine_kwargs["pool_size"] = settings.DB_POOL_SIZE
+    engine_kwargs["max_overflow"] = settings.DB_MAX_OVERFLOW
+    engine_kwargs["pool_timeout"] = settings.DB_POOL_TIMEOUT
+
+engine = create_async_engine(settings.DATABASE_URL, **engine_kwargs)
 
 # Async session factory
 AsyncSessionLocal = async_sessionmaker(

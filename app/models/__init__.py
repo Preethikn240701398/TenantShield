@@ -1,9 +1,8 @@
 """
-TenantShield Database Models (SQLAlchemy ORM)
-============================================
-ORM models mapping to PostgreSQL tables:
-- Tenant
-- User
-- Document
-- SecurityEvent
+TenantShield Database Models
 """
+
+from app.models.base import Base
+from app.models.user import User
+
+__all__ = ["Base", "User"]
