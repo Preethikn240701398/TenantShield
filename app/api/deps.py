@@ -7,7 +7,7 @@ transaction-scoped tenant database sessions (get_tenant_db).
 
 from typing import AsyncGenerator
 from uuid import UUID
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,12 +16,14 @@ from app.core.config import settings
 from app.core.database import AsyncSessionLocal, set_tenant_context
 from app.schemas.auth import AuthenticatedUser
 from app.services.auth import AuthService
+from app.services.rate_limiter import RateLimiterService, RateLimiterUnavailableError
 
 # Bearer security scheme for Authorization header
 bearer_scheme = HTTPBearer(auto_error=False)
 
 
 async def get_current_user(
+    request: Request = None,
     credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
 ) -> AuthenticatedUser:
     """
@@ -78,6 +80,10 @@ async def get_current_user(
                 headers={"WWW-Authenticate": "Bearer"},
             )
 
+        if request is not None:
+            request.state.tenant_id = user_row.tenant_id
+            request.state.user_id = user_row.id
+
         return AuthenticatedUser(
             user_id=user_row.id,
             tenant_id=user_row.tenant_id,
@@ -86,8 +92,50 @@ async def get_current_user(
         )
 
 
-async def get_tenant_db(
+async def check_tenant_rate_limit(
+    request: Request = None,
     current_user: AuthenticatedUser = Depends(get_current_user),
+) -> AuthenticatedUser:
+    """
+    FastAPI dependency enforcing tenant-aware rate limiting on the verified tenant identity.
+    Guarantees:
+    - Only called for authenticated requests with trusted current_user.tenant_id.
+    - Prevents duplicate rate limit increments per HTTP request via request.state flag.
+    - Platform administrator is exempt from standard tenant rate limiting quotas.
+    - Fails closed (503 Service Unavailable) or open (permits traffic) per REDIS_FAILURE_POLICY.
+    - Returns HTTP 429 Too Many Requests with Retry-After header on quota exhaustion.
+    """
+    if request is not None:
+        if getattr(request.state, "rate_limit_checked", False):
+            return current_user
+        request.state.rate_limit_checked = True
+
+    # Platform administrator exemption
+    if current_user.role == "platform_admin":
+        return current_user
+
+    try:
+        allowed, remaining, retry_after = await RateLimiterService.check_rate_limit(
+            current_user.tenant_id
+        )
+    except RateLimiterUnavailableError:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Service unavailable: Rate limiting service unreachable.",
+        )
+
+    if not allowed:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Rate limit exceeded. Too many requests.",
+            headers={"Retry-After": str(retry_after)},
+        )
+
+    return current_user
+
+
+async def get_tenant_db(
+    current_user: AuthenticatedUser = Depends(check_tenant_rate_limit),
 ) -> AsyncGenerator[AsyncSession, None]:
     """
     FastAPI dependency yielding an AsyncSession bound to a transaction-local

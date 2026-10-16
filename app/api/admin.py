@@ -1,13 +1,15 @@
 """
-TenantShield - Platform Admin Key Lifecycle Endpoints
-=====================================================
+TenantShield - Platform Admin Endpoints
+=======================================
 Protected administrative endpoints for:
-- Rotating tenant Data Encryption Keys (DEKs).
-- Crypto-shredding tenant keys (permanent cryptographic offboarding).
-Only accessible to users with the 'platform_admin' role.
+1. Rotating tenant Data Encryption Keys (DEKs).
+2. Crypto-shredding tenant keys (permanent cryptographic offboarding).
+3. Querying per-tenant operational and telemetry metrics (request count, errors, latency).
+
+All endpoints strictly require the 'platform_admin' role.
 """
 
-from typing import Optional
+from typing import Any, Dict, Optional
 from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 
@@ -16,12 +18,13 @@ from app.api.documents import log_security_event
 from app.core.database import tenant_session
 from app.schemas.auth import AuthenticatedUser
 from app.services.crypto import CryptoService
+from app.services.metrics import MetricsService, MetricsUnavailableError
 
-router = APIRouter(prefix="/admin/keys", tags=["Admin Key Lifecycle"])
+router = APIRouter(prefix="/admin", tags=["Platform Admin"])
 
 
 @router.post(
-    "/{tenant_id}/rotate",
+    "/keys/{tenant_id}/rotate",
     status_code=status.HTTP_200_OK,
     summary="Rotate Tenant DEK",
     description="Retires the active DEK for a tenant and provisions version N+1. Requires platform_admin role.",
@@ -68,7 +71,7 @@ async def rotate_tenant_key(
 
 
 @router.post(
-    "/{tenant_id}/shred",
+    "/keys/{tenant_id}/shred",
     status_code=status.HTTP_200_OK,
     summary="Crypto-Shred Tenant Key",
     description="Permanently nullifies wrapped key material for a tenant. Requires platform_admin role.",
@@ -118,3 +121,67 @@ async def shred_tenant_key(
         "key_version": key_version,
         "keys_destroyed": shredded_count,
     }
+
+
+@router.get(
+    "/metrics",
+    status_code=status.HTTP_200_OK,
+    summary="Get Multi-Tenant Metrics",
+    description=(
+        "Retrieves aggregated operational metrics (requests, errors, latency) per tenant "
+        "across a specified time window. Accessible only to platform administrators."
+    ),
+)
+async def get_system_metrics(
+    request: Request,
+    window_minutes: int = Query(60, description="Reporting interval in minutes (1 to 1440)"),
+    limit: int = Query(100, description="Maximum number of tenants to return (1 to 1000)"),
+    tenant_id: Optional[UUID] = Query(None, description="Optional tenant ID filter"),
+    current_user: AuthenticatedUser = Depends(get_current_user),
+) -> Dict[str, Any]:
+    client_ip = request.client.host if request.client else None
+
+    # Strict authorization: Only platform_admin permitted
+    if current_user.role != "platform_admin":
+        await log_security_event(
+            event_type="UNAUTHORIZED_ADMIN_ACCESS",
+            severity="WARNING",
+            details={"endpoint": "/admin/metrics", "role": current_user.role},
+            ip_address=client_ip,
+            tenant_id=current_user.tenant_id,
+            user_id=current_user.user_id,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Forbidden: Platform administrator privileges required.",
+        )
+
+    # Validate window and limit bounds
+    if window_minutes < 1 or window_minutes > 1440:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid reporting window: window_minutes must be between 1 and 1440 minutes.",
+        )
+    if limit < 1 or limit > 1000:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid limit: limit must be between 1 and 1000.",
+        )
+
+    try:
+        metrics_data = await MetricsService.get_aggregated_metrics(
+            window_minutes=window_minutes,
+            tenant_id=tenant_id,
+            limit=limit,
+        )
+        return metrics_data
+    except MetricsUnavailableError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Service unavailable: Redis metrics service is currently unreachable.",
+        ) from exc
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc

@@ -51,8 +51,21 @@ class Settings(BaseSettings):
     DB_MAX_OVERFLOW: int = Field(default=20, description="SQLAlchemy connection pool max overflow")
     DB_POOL_TIMEOUT: int = Field(default=30, description="SQLAlchemy pool timeout in seconds")
 
-    # Redis Configuration (For rate limiting in upcoming levels)
+    # Redis Configuration (Level 6: Rate Limiting & Per-Tenant Metrics)
     REDIS_URL: str = Field(default="redis://localhost:6379/0", description="Redis connection URL")
+    RATE_LIMIT_REQUESTS: int = Field(default=100, description="Max allowed requests per tenant per time window")
+    RATE_LIMIT_WINDOW_SECONDS: int = Field(default=60, description="Rate limit time window duration in seconds")
+    REDIS_FAILURE_POLICY: str = Field(
+        default="fail_open",
+        description="Behavior when Redis is unreachable: 'fail_open' or 'fail_closed'",
+    )
+    REDIS_CONNECT_TIMEOUT: float = Field(default=2.0, description="Redis connection timeout in seconds")
+    REDIS_SOCKET_TIMEOUT: float = Field(default=2.0, description="Redis socket read/write timeout in seconds")
+    METRICS_RETENTION_SECONDS: int = Field(
+        default=86400,
+        description="Retention TTL for time-bucketed metrics in seconds (default 24h)",
+    )
+
 
     # Cryptography & JWT Authentication
     SECRET_KEY: str = Field(
@@ -131,6 +144,21 @@ class Settings(BaseSettings):
                 "Cryptographic Configuration Error: TENANTSHIELD_MASTER_KEY must be a valid 256-bit (32 bytes) "
                 "key represented as 64 hexadecimal characters."
             )
+
+        # Validate Level 6 Redis Settings
+        failure_policy = (self.REDIS_FAILURE_POLICY or "fail_open").strip().lower()
+        if failure_policy not in ("fail_open", "fail_closed"):
+            raise ValueError(
+                f"Configuration Error: REDIS_FAILURE_POLICY must be either 'fail_open' or 'fail_closed' (got '{self.REDIS_FAILURE_POLICY}')"
+            )
+        if self.RATE_LIMIT_REQUESTS <= 0:
+            raise ValueError("Configuration Error: RATE_LIMIT_REQUESTS must be greater than 0")
+        if self.RATE_LIMIT_WINDOW_SECONDS <= 0:
+            raise ValueError("Configuration Error: RATE_LIMIT_WINDOW_SECONDS must be greater than 0")
+        if self.REDIS_CONNECT_TIMEOUT <= 0 or self.REDIS_SOCKET_TIMEOUT <= 0:
+            raise ValueError("Configuration Error: Redis timeouts must be greater than 0")
+        if self.METRICS_RETENTION_SECONDS <= 0:
+            raise ValueError("Configuration Error: METRICS_RETENTION_SECONDS must be greater than 0")
 
         return self
 
