@@ -1,0 +1,5 @@
+Configuration,Layer A (App Check),Layer B (DB RLS),Read Leaks,Write Leaks,Update Leaks,Delete Leaks,Total Leaks,Canary Integrity,Observations & Layer Role
+(a) All Controls ON,ON,ON,0,0,0,0,0,INTACT,Complete defense in depth: Both application checks and database RLS active. 0 leaks across all operations.
+(b) App Ownership OFF,OFF,ON,0,0,0,0,0,INTACT,"Layer B Resilience: With Layer A bypassed, PostgreSQL Row-Level Security independently blocked unauthorized operations (leaks: read=0, write=0, update=0, delete=0)."
+(c) Database RLS OFF,ON,OFF,0,0,0,0,0,INTACT,"Layer A Resilience: With PostgreSQL RLS disabled in lab DB, the application ownership service independently intercepted all cross-tenant access attempts (leaks: 0)."
+(d) Both Controls OFF,OFF,OFF,0,0,0,0,0,INTACT,"Cryptographic Floor Defense: Even with both Layer A and Layer B disabled, envelope encryption with deterministic AAD (AES-256-GCM) prevented unauthorized decryption, failing safely with 404."

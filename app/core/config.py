@@ -36,6 +36,10 @@ class Settings(BaseSettings):
         default=True,
         description="Layer B: PostgreSQL Row-Level Security enforcement",
     )
+    ENABLE_QUERY_TENANT_FILTER: bool = Field(
+        default=True,
+        description="Layer C: Application-level WHERE tenant_id=? query filter (lab-only switch)",
+    )
 
     # Database Configuration (PostgreSQL 16)
     # Uses the restricted application role (tenantshield_app)
@@ -111,6 +115,11 @@ class Settings(BaseSettings):
             if not self.ENABLE_DB_RLS:
                 raise ValueError(
                     f"Security Policy Violation: ENABLE_DB_RLS can only be disabled "
+                    f"when APP_ENV='lab' (current APP_ENV='{self.APP_ENV}')."
+                )
+            if not self.ENABLE_QUERY_TENANT_FILTER:
+                raise ValueError(
+                    f"Security Policy Violation: ENABLE_QUERY_TENANT_FILTER can only be disabled "
                     f"when APP_ENV='lab' (current APP_ENV='{self.APP_ENV}')."
                 )
 

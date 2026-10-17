@@ -7,7 +7,7 @@ and PostgreSQL Row-Level Security (RLS) tenant context setting from API routes.
 
 import uuid
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator
+from typing import AsyncGenerator, Optional
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
@@ -40,6 +40,21 @@ AsyncSessionLocal = async_sessionmaker(
     autoflush=False,
     expire_on_commit=False,
 )
+
+
+def reconfigure_engine(target_url: Optional[str] = None) -> None:
+    """
+    Rebinds the database engine and session factory to a specified connection URL,
+    allowing dynamic switching between tenantshield_db and tenantshield_lab.
+    """
+    global engine, AsyncSessionLocal
+    url = target_url or (
+        settings.LAB_DATABASE_URL
+        if (getattr(settings, "APP_ENV", "") or getattr(settings, "ENVIRONMENT", "")).lower() == "lab"
+        else settings.DATABASE_URL
+    )
+    engine = create_async_engine(url, **engine_kwargs)
+    AsyncSessionLocal.configure(bind=engine)
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:

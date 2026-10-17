@@ -157,10 +157,10 @@ GRANT USAGE ON SCHEMA public TO tenantshield_app;
 -- - documents: SELECT, INSERT, UPDATE, DELETE (full tenant workspace operations)
 -- - tenant_keys: SELECT, INSERT, UPDATE (read DEKs, provision new version, shred key)
 -- - tenants: SELECT only (read tenant metadata; tenant creation requires admin)
--- - users: SELECT only (read tenant users; user administration requires admin/auth)
+-- - users: SELECT, INSERT, UPDATE, DELETE (user management and authentication)
 -- - security_events: SELECT, INSERT (audit logging; modification/deletion prohibited)
 GRANT SELECT ON TABLE tenants TO tenantshield_app;
-GRANT SELECT ON TABLE users TO tenantshield_app;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE users TO tenantshield_app;
 GRANT SELECT, INSERT, UPDATE ON TABLE tenant_keys TO tenantshield_app;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE documents TO tenantshield_app;
 GRANT SELECT, INSERT ON TABLE security_events TO tenantshield_app;

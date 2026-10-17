@@ -1,0 +1,6 @@
+Configuration,Layer A,Layer B,Layer C,Read Leaks,Write Leaks,Update Leaks,Delete Leaks,Total Leaks,Config Verdict,Control Passed,Canary Integrity,Ownership Check Calls,RLS relrowsecurity,RLS relforcerowsecurity,Active Protections
+(a) All Controls ON,ON,ON,ON,0,0,0,0,0,NO_LEAK_DETECTED,True,INTACT,11,True,True,"OWNERSHIP_CHECK (Layer A); RLS_FILTERED (Layer B); QUERY_TENANT_FILTER (Layer C); DECRYPT_FAILED (envelope encryption, always active)"
+(b) App Ownership OFF,OFF,ON,ON,0,0,0,0,0,NO_LEAK_DETECTED,True,INTACT,11,True,True,"RLS_FILTERED (Layer B); QUERY_TENANT_FILTER (Layer C); DECRYPT_FAILED (envelope encryption, always active)"
+(c) Database RLS OFF,ON,OFF,ON,0,0,0,0,0,NO_LEAK_DETECTED,True,INTACT,15,False,False,"OWNERSHIP_CHECK (Layer A); QUERY_TENANT_FILTER (Layer C); DECRYPT_FAILED (envelope encryption, always active)"
+(d) Both A+B OFF,OFF,OFF,ON,0,0,0,0,0,NO_LEAK_DETECTED,True,INTACT,15,False,False,"QUERY_TENANT_FILTER (Layer C); DECRYPT_FAILED (envelope encryption, always active)"
+(e) All Controls OFF,OFF,OFF,OFF,0,0,0,0,0,NO_LEAK_DETECTED,True,INTACT,18,False,False,"DECRYPT_FAILED (envelope encryption, always active)"

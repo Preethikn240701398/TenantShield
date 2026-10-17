@@ -1,0 +1,130 @@
+{
+  "suite": "TenantShield Level 6: Redis Rate Limiting and Per-Tenant Metrics",
+  "generated_at_utc": "2026-10-17T11:41:25.802327+00:00",
+  "total_experiments_recorded": 12,
+  "experiments": [
+    {
+      "test_number": 7,
+      "requirement": "Concurrent requests handled atomically without race condition",
+      "timestamp_utc": "2026-10-17T11:41:19.705918+00:00",
+      "outcome": "PASSED",
+      "evidence": {
+        "total_concurrent_requests": 25,
+        "configured_limit": 10,
+        "allowed": 10,
+        "rejected": 15
+      }
+    },
+    {
+      "test_number": 12,
+      "requirement": "Unexpected endpoint exceptions record latency and error status",
+      "timestamp_utc": "2026-10-17T11:41:22.602342+00:00",
+      "outcome": "PASSED",
+      "evidence": {
+        "status_code": 500,
+        "duration_ms": 45.2,
+        "recorded": true
+      }
+    },
+    {
+      "test_number": 13,
+      "requirement": "Metrics expire according to retention policy",
+      "timestamp_utc": "2026-10-17T11:41:22.610446+00:00",
+      "outcome": "PASSED",
+      "evidence": {
+        "key": "tenantshield:metrics:80e84bca-69e3-48b5-ae51-19afe57e66d4:1792237260",
+        "actual_ttl": 86400,
+        "configured_retention": 86400
+      }
+    },
+    {
+      "test_number": 15,
+      "requirement": "Unauthenticated request rejected with HTTP 401",
+      "timestamp_utc": "2026-10-17T11:41:23.635526+00:00",
+      "outcome": "PASSED",
+      "evidence": {
+        "status_code": 401
+      }
+    },
+    {
+      "test_number": 16,
+      "requirement": "Authenticated non-admin receives HTTP 403",
+      "timestamp_utc": "2026-10-17T11:41:23.784218+00:00",
+      "outcome": "PASSED",
+      "evidence": {
+        "status_code": 403,
+        "detail": "Forbidden: Platform administrator privileges required."
+      }
+    },
+    {
+      "test_number": 17,
+      "requirement": "Tenant user cannot access platform-wide metrics",
+      "timestamp_utc": "2026-10-17T11:41:23.937199+00:00",
+      "outcome": "PASSED",
+      "evidence": {
+        "status_code": 403
+      }
+    },
+    {
+      "test_number": 18,
+      "requirement": "Invalid reporting windows rejected with HTTP 400",
+      "timestamp_utc": "2026-10-17T11:41:24.125546+00:00",
+      "outcome": "PASSED",
+      "evidence": {
+        "window_0_status": 400,
+        "window_large_status": 400
+      }
+    },
+    {
+      "test_number": 19,
+      "requirement": "Empty metrics returns consistent structured response",
+      "timestamp_utc": "2026-10-17T11:41:24.193568+00:00",
+      "outcome": "PASSED",
+      "evidence": {
+        "status": 200,
+        "tenant_count": 0,
+        "tenants": []
+      }
+    },
+    {
+      "test_number": 20,
+      "requirement": "Fail-closed policy returns HTTP 503",
+      "timestamp_utc": "2026-10-17T11:41:24.257258+00:00",
+      "outcome": "PASSED",
+      "evidence": {
+        "failure_policy": "fail_closed",
+        "status_code": 503
+      }
+    },
+    {
+      "test_number": 22,
+      "requirement": "Redis outage returns 503 rather than fabricated zero metrics",
+      "timestamp_utc": "2026-10-17T11:41:25.199349+00:00",
+      "outcome": "PASSED",
+      "evidence": {
+        "status_code": 503,
+        "no_fabricated_zero_metrics": true
+      }
+    },
+    {
+      "test_number": 23,
+      "requirement": "Metric failure does not mask original endpoint response",
+      "timestamp_utc": "2026-10-17T11:41:25.324343+00:00",
+      "outcome": "PASSED",
+      "evidence": {
+        "status_code": 404,
+        "exception_preserved": true
+      }
+    },
+    {
+      "test_number": 24,
+      "requirement": "Levels 0-5 CRUD, RLS, and envelope encryption intact",
+      "timestamp_utc": "2026-10-17T11:41:25.796667+00:00",
+      "outcome": "PASSED",
+      "evidence": {
+        "doc_id": "45ed2b77-a582-4876-bd3d-131958527ce5",
+        "crud_verified": true
+      }
+    }
+  ]
+}

@@ -16,6 +16,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_tenant_db
+from app.core.config import settings
 from app.core.database import AsyncSessionLocal
 from app.schemas.auth import AuthenticatedUser
 from app.schemas.document import DocumentCreate, DocumentResponse, DocumentUpdate
@@ -180,12 +181,26 @@ async def list_documents(
             user_id=current_user.user_id,
         )
 
-    result = await db.execute(
-        text(
-            "SELECT id, tenant_id, owner_id, title, key_version, nonce, ciphertext, created_at, updated_at "
-            "FROM documents ORDER BY created_at ASC"
+    # Layer C: query-level tenant filter (disabled only in lab mode experiments)
+    use_query_filter = settings.ENABLE_QUERY_TENANT_FILTER
+    if not use_query_filter and settings.APP_ENV.lower() != "lab":
+        use_query_filter = True  # fail-safe outside lab
+
+    if use_query_filter:
+        result = await db.execute(
+            text(
+                "SELECT id, tenant_id, owner_id, title, key_version, nonce, ciphertext, created_at, updated_at "
+                "FROM documents WHERE tenant_id = :tenant_id ORDER BY created_at ASC"
+            ),
+            {"tenant_id": str(current_user.tenant_id)},
         )
-    )
+    else:
+        result = await db.execute(
+            text(
+                "SELECT id, tenant_id, owner_id, title, key_version, nonce, ciphertext, created_at, updated_at "
+                "FROM documents ORDER BY created_at ASC"
+            )
+        )
     rows = result.fetchall()
 
     visible_docs = []
@@ -439,6 +454,11 @@ async def update_document(
         },
     )
     updated_row = update_result.fetchone()
+    if updated_row is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Document not found",
+        )
     return DocumentResponse(
         id=updated_row.id,
         tenant_id=updated_row.tenant_id,
@@ -500,11 +520,16 @@ async def delete_document(
         raise
 
     # 3. Delete document
-    await db.execute(
+    del_res = await db.execute(
         text("DELETE FROM documents WHERE id = :document_id AND tenant_id = :tenant_id"),
         {
             "document_id": str(document_id),
             "tenant_id": str(current_user.tenant_id),
         },
     )
+    if del_res.rowcount == 0:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Document not found",
+        )
     return Response(status_code=status.HTTP_204_NO_CONTENT)
