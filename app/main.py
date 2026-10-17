@@ -6,6 +6,7 @@ route registration.
 """
 
 from contextlib import asynccontextmanager
+import logging
 import time
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -19,6 +20,8 @@ from app.core.config import settings
 from app.core.database import engine
 from app.services.metrics import MetricsService
 from app.services.rate_limiter import RateLimiterService
+
+app_logger = logging.getLogger("tenantshield.main")
 
 
 class TenantMetricsMiddleware(BaseHTTPMiddleware):
@@ -36,11 +39,23 @@ class TenantMetricsMiddleware(BaseHTTPMiddleware):
         try:
             response = await call_next(request)
             status_code = response.status_code
+            duration_ms = (time.perf_counter() - start_time) * 1000.0
+            response.headers["X-Process-Time-Ms"] = f"{duration_ms:.2f}"
             return response
         except Exception:
             status_code = 500
             raise
         finally:
+            # Release concurrency slot if held by this request (even on error/failure)
+            if getattr(request.state, "concurrency_slot_held", False):
+                slot_tenant_id = getattr(request.state, "concurrency_tenant_id", None)
+                if slot_tenant_id:
+                    try:
+                        from app.limiter.service import LimiterService
+                        await LimiterService.release_concurrency(slot_tenant_id)
+                    except Exception:
+                        pass
+
             duration_ms = (time.perf_counter() - start_time) * 1000.0
             tenant_id = getattr(request.state, "tenant_id", None)
             if tenant_id is not None:
@@ -62,6 +77,12 @@ async def lifespan(app: FastAPI):
     of shared resources like connection pools.
     """
     # Startup: Resources are prepared on demand
+    from app.limiter.service import LimiterService
+    app_logger.info(
+        "Server startup: Active limiter strategy=%s, effective_limits=%s",
+        LimiterService.get_strategy().strategy_name,
+        LimiterService.get_effective_config(),
+    )
     yield
     # Shutdown: Cleanly dispose of Redis and SQLAlchemy connection pools
     await RateLimiterService.close()

@@ -1,0 +1,1651 @@
+{
+  "title": "TenantShield Noisy-Neighbour Experiment Runs (Raw)",
+  "generated_at_utc": "2026-10-17T15:14:22.798224+00:00",
+  "environment": {
+    "cpu_model": "AMD Ryzen 7 7840HS w/ Radeon 780M Graphics",
+    "core_count": 16,
+    "ram_gb": 15.29,
+    "windows_version": "Windows 11 (Build 10.0.26300)",
+    "python_version": "3.13.2",
+    "postgres_version": "PostgreSQL 16.15, compiled by Visual C++ build 1944, 64-bit",
+    "memurai_version": "Memurai 8.2.0 (Redis 8.2.10)",
+    "server_workers": 1
+  },
+  "plan": {
+    "warmup_seconds": 2.0,
+    "run_seconds": 30.0,
+    "num_repeats": 3,
+    "beta_rps": 2.0,
+    "beta_expected_requests_per_run": 60,
+    "measurement_window_note": "30.0s window \u2192 ~60 Beta samples per run"
+  },
+  "total_runs": 42,
+  "runs": [
+    {
+      "strategy": "none",
+      "load_type": "quiet_baseline",
+      "repeat": 1,
+      "effective_config_at_run": {
+        "strategy": "none",
+        "limits": "none"
+      },
+      "metrics": {
+        "beta": {
+          "request_count": 60,
+          "expected_count": 60,
+          "flagged": false,
+          "p50_ms": 81.43,
+          "p95_ms": 88.08,
+          "error_count": 0,
+          "error_rate": 0.0,
+          "server_p50_ms": 75.63,
+          "server_p95_ms": 81.97
+        },
+        "acme": {
+          "request_count": 0,
+          "count_200": 0,
+          "count_429": 0,
+          "count_timeout": 0,
+          "count_errors": 0
+        },
+        "harness_overhead": {
+          "health_client_p50_ms": null,
+          "health_server_p50_ms": null,
+          "health_count": 0
+        }
+      },
+      "raw_records_count": 64,
+      "warmup_seconds": 2.0,
+      "run_seconds": 30.0,
+      "strategy_label": "Quiet-Only Baseline (Beta alone)"
+    },
+    {
+      "strategy": "none",
+      "load_type": "quiet_baseline",
+      "repeat": 2,
+      "effective_config_at_run": {
+        "strategy": "none",
+        "limits": "none"
+      },
+      "metrics": {
+        "beta": {
+          "request_count": 60,
+          "expected_count": 60,
+          "flagged": false,
+          "p50_ms": 81.42,
+          "p95_ms": 88.94,
+          "error_count": 0,
+          "error_rate": 0.0,
+          "server_p50_ms": 76.09,
+          "server_p95_ms": 82.79
+        },
+        "acme": {
+          "request_count": 0,
+          "count_200": 0,
+          "count_429": 0,
+          "count_timeout": 0,
+          "count_errors": 0
+        },
+        "harness_overhead": {
+          "health_client_p50_ms": null,
+          "health_server_p50_ms": null,
+          "health_count": 0
+        }
+      },
+      "raw_records_count": 64,
+      "warmup_seconds": 2.0,
+      "run_seconds": 30.0,
+      "strategy_label": "Quiet-Only Baseline (Beta alone)"
+    },
+    {
+      "strategy": "none",
+      "load_type": "quiet_baseline",
+      "repeat": 3,
+      "effective_config_at_run": {
+        "strategy": "none",
+        "limits": "none"
+      },
+      "metrics": {
+        "beta": {
+          "request_count": 60,
+          "expected_count": 60,
+          "flagged": false,
+          "p50_ms": 82.92,
+          "p95_ms": 90.68,
+          "error_count": 0,
+          "error_rate": 0.0,
+          "server_p50_ms": 77.09,
+          "server_p95_ms": 84.83
+        },
+        "acme": {
+          "request_count": 0,
+          "count_200": 0,
+          "count_429": 0,
+          "count_timeout": 0,
+          "count_errors": 0
+        },
+        "harness_overhead": {
+          "health_client_p50_ms": null,
+          "health_server_p50_ms": null,
+          "health_count": 0
+        }
+      },
+      "raw_records_count": 64,
+      "warmup_seconds": 2.0,
+      "run_seconds": 30.0,
+      "strategy_label": "Quiet-Only Baseline (Beta alone)"
+    },
+    {
+      "strategy": "none",
+      "load_type": "harness_overhead",
+      "repeat": 1,
+      "effective_config_at_run": {
+        "strategy": "none",
+        "limits": "none"
+      },
+      "metrics": {
+        "beta": {
+          "request_count": 60,
+          "expected_count": 60,
+          "flagged": false,
+          "p50_ms": 5.81,
+          "p95_ms": 7.77,
+          "error_count": 0,
+          "error_rate": 0.0,
+          "server_p50_ms": 2.26,
+          "server_p95_ms": 3.32
+        },
+        "acme": {
+          "request_count": 0,
+          "count_200": 0,
+          "count_429": 0,
+          "count_timeout": 0,
+          "count_errors": 0
+        },
+        "harness_overhead": {
+          "health_client_p50_ms": 5.81,
+          "health_server_p50_ms": 2.26,
+          "health_count": 60
+        }
+      },
+      "raw_records_count": 64,
+      "warmup_seconds": 2.0,
+      "run_seconds": 30.0,
+      "strategy_label": "Harness Overhead (/health)"
+    },
+    {
+      "strategy": "none",
+      "load_type": "harness_overhead",
+      "repeat": 2,
+      "effective_config_at_run": {
+        "strategy": "none",
+        "limits": "none"
+      },
+      "metrics": {
+        "beta": {
+          "request_count": 60,
+          "expected_count": 60,
+          "flagged": false,
+          "p50_ms": 7.25,
+          "p95_ms": 8.73,
+          "error_count": 0,
+          "error_rate": 0.0,
+          "server_p50_ms": 2.96,
+          "server_p95_ms": 3.57
+        },
+        "acme": {
+          "request_count": 0,
+          "count_200": 0,
+          "count_429": 0,
+          "count_timeout": 0,
+          "count_errors": 0
+        },
+        "harness_overhead": {
+          "health_client_p50_ms": 7.25,
+          "health_server_p50_ms": 2.96,
+          "health_count": 60
+        }
+      },
+      "raw_records_count": 64,
+      "warmup_seconds": 2.0,
+      "run_seconds": 30.0,
+      "strategy_label": "Harness Overhead (/health)"
+    },
+    {
+      "strategy": "none",
+      "load_type": "harness_overhead",
+      "repeat": 3,
+      "effective_config_at_run": {
+        "strategy": "none",
+        "limits": "none"
+      },
+      "metrics": {
+        "beta": {
+          "request_count": 60,
+          "expected_count": 60,
+          "flagged": false,
+          "p50_ms": 7.21,
+          "p95_ms": 9.65,
+          "error_count": 0,
+          "error_rate": 0.0,
+          "server_p50_ms": 2.8,
+          "server_p95_ms": 3.74
+        },
+        "acme": {
+          "request_count": 0,
+          "count_200": 0,
+          "count_429": 0,
+          "count_timeout": 0,
+          "count_errors": 0
+        },
+        "harness_overhead": {
+          "health_client_p50_ms": 7.21,
+          "health_server_p50_ms": 2.8,
+          "health_count": 60
+        }
+      },
+      "raw_records_count": 64,
+      "warmup_seconds": 2.0,
+      "run_seconds": 30.0,
+      "strategy_label": "Harness Overhead (/health)"
+    },
+    {
+      "strategy": "none",
+      "load_type": "high_volume",
+      "repeat": 1,
+      "effective_config_at_run": {
+        "strategy": "none",
+        "limits": "none"
+      },
+      "metrics": {
+        "beta": {
+          "request_count": 60,
+          "expected_count": 60,
+          "flagged": false,
+          "p50_ms": 20273.15,
+          "p95_ms": 26687.44,
+          "error_count": 48,
+          "error_rate": 0.8,
+          "server_p50_ms": 8499.4,
+          "server_p95_ms": 13360.22
+        },
+        "acme": {
+          "request_count": 600,
+          "count_200": 66,
+          "count_429": 0,
+          "count_timeout": 534,
+          "count_errors": 0
+        },
+        "harness_overhead": {
+          "health_client_p50_ms": null,
+          "health_server_p50_ms": null,
+          "health_count": 0
+        }
+      },
+      "raw_records_count": 704,
+      "warmup_seconds": 2.0,
+      "run_seconds": 30.0,
+      "strategy_label": "Baseline (No Limit)"
+    },
+    {
+      "strategy": "none",
+      "load_type": "high_volume",
+      "repeat": 2,
+      "effective_config_at_run": {
+        "strategy": "none",
+        "limits": "none"
+      },
+      "metrics": {
+        "beta": {
+          "request_count": 60,
+          "expected_count": 60,
+          "flagged": false,
+          "p50_ms": 20323.91,
+          "p95_ms": 26589.45,
+          "error_count": 51,
+          "error_rate": 0.85,
+          "server_p50_ms": 5135.87,
+          "server_p95_ms": 12651.24
+        },
+        "acme": {
+          "request_count": 599,
+          "count_200": 68,
+          "count_429": 0,
+          "count_timeout": 531,
+          "count_errors": 0
+        },
+        "harness_overhead": {
+          "health_client_p50_ms": null,
+          "health_server_p50_ms": null,
+          "health_count": 0
+        }
+      },
+      "raw_records_count": 703,
+      "warmup_seconds": 2.0,
+      "run_seconds": 30.0,
+      "strategy_label": "Baseline (No Limit)"
+    },
+    {
+      "strategy": "none",
+      "load_type": "high_volume",
+      "repeat": 3,
+      "effective_config_at_run": {
+        "strategy": "none",
+        "limits": "none"
+      },
+      "metrics": {
+        "beta": {
+          "request_count": 60,
+          "expected_count": 60,
+          "flagged": false,
+          "p50_ms": 20246.17,
+          "p95_ms": 26688.15,
+          "error_count": 52,
+          "error_rate": 0.8667,
+          "server_p50_ms": 7229.35,
+          "server_p95_ms": 12899.84
+        },
+        "acme": {
+          "request_count": 600,
+          "count_200": 68,
+          "count_429": 0,
+          "count_timeout": 532,
+          "count_errors": 0
+        },
+        "harness_overhead": {
+          "health_client_p50_ms": null,
+          "health_server_p50_ms": null,
+          "health_count": 0
+        }
+      },
+      "raw_records_count": 704,
+      "warmup_seconds": 2.0,
+      "run_seconds": 30.0,
+      "strategy_label": "Baseline (No Limit)"
+    },
+    {
+      "strategy": "none",
+      "load_type": "expensive",
+      "repeat": 1,
+      "effective_config_at_run": {
+        "strategy": "none",
+        "limits": "none"
+      },
+      "metrics": {
+        "beta": {
+          "request_count": 60,
+          "expected_count": 60,
+          "flagged": false,
+          "p50_ms": 75.94,
+          "p95_ms": 93.27,
+          "error_count": 0,
+          "error_rate": 0.0,
+          "server_p50_ms": 71.49,
+          "server_p95_ms": 86.78
+        },
+        "acme": {
+          "request_count": 12,
+          "count_200": 12,
+          "count_429": 0,
+          "count_timeout": 0,
+          "count_errors": 0
+        },
+        "harness_overhead": {
+          "health_client_p50_ms": null,
+          "health_server_p50_ms": null,
+          "health_count": 0
+        }
+      },
+      "raw_records_count": 78,
+      "warmup_seconds": 2.0,
+      "run_seconds": 30.0,
+      "strategy_label": "Baseline (No Limit)"
+    },
+    {
+      "strategy": "none",
+      "load_type": "expensive",
+      "repeat": 2,
+      "effective_config_at_run": {
+        "strategy": "none",
+        "limits": "none"
+      },
+      "metrics": {
+        "beta": {
+          "request_count": 60,
+          "expected_count": 60,
+          "flagged": false,
+          "p50_ms": 77.06,
+          "p95_ms": 93.97,
+          "error_count": 0,
+          "error_rate": 0.0,
+          "server_p50_ms": 72.83,
+          "server_p95_ms": 86.94
+        },
+        "acme": {
+          "request_count": 12,
+          "count_200": 12,
+          "count_429": 0,
+          "count_timeout": 0,
+          "count_errors": 0
+        },
+        "harness_overhead": {
+          "health_client_p50_ms": null,
+          "health_server_p50_ms": null,
+          "health_count": 0
+        }
+      },
+      "raw_records_count": 78,
+      "warmup_seconds": 2.0,
+      "run_seconds": 30.0,
+      "strategy_label": "Baseline (No Limit)"
+    },
+    {
+      "strategy": "none",
+      "load_type": "expensive",
+      "repeat": 3,
+      "effective_config_at_run": {
+        "strategy": "none",
+        "limits": "none"
+      },
+      "metrics": {
+        "beta": {
+          "request_count": 60,
+          "expected_count": 60,
+          "flagged": false,
+          "p50_ms": 76.45,
+          "p95_ms": 88.74,
+          "error_count": 0,
+          "error_rate": 0.0,
+          "server_p50_ms": 72.03,
+          "server_p95_ms": 84.31
+        },
+        "acme": {
+          "request_count": 12,
+          "count_200": 12,
+          "count_429": 0,
+          "count_timeout": 0,
+          "count_errors": 0
+        },
+        "harness_overhead": {
+          "health_client_p50_ms": null,
+          "health_server_p50_ms": null,
+          "health_count": 0
+        }
+      },
+      "raw_records_count": 78,
+      "warmup_seconds": 2.0,
+      "run_seconds": 30.0,
+      "strategy_label": "Baseline (No Limit)"
+    },
+    {
+      "strategy": "request_count",
+      "load_type": "high_volume",
+      "repeat": 1,
+      "effective_config_at_run": {
+        "strategy": "request_count",
+        "requests_limit": 15,
+        "window_seconds": 10
+      },
+      "metrics": {
+        "beta": {
+          "request_count": 60,
+          "expected_count": 60,
+          "flagged": false,
+          "p50_ms": 94.06,
+          "p95_ms": 1267.7,
+          "error_count": 14,
+          "error_rate": 0.2333,
+          "server_p50_ms": 86.44,
+          "server_p95_ms": 1231.27
+        },
+        "acme": {
+          "request_count": 600,
+          "count_200": 45,
+          "count_429": 555,
+          "count_timeout": 0,
+          "count_errors": 0
+        },
+        "harness_overhead": {
+          "health_client_p50_ms": null,
+          "health_server_p50_ms": null,
+          "health_count": 0
+        }
+      },
+      "raw_records_count": 704,
+      "warmup_seconds": 2.0,
+      "run_seconds": 30.0,
+      "strategy_label": "Strategy A: Request-Count Limit"
+    },
+    {
+      "strategy": "request_count",
+      "load_type": "high_volume",
+      "repeat": 2,
+      "effective_config_at_run": {
+        "strategy": "request_count",
+        "requests_limit": 15,
+        "window_seconds": 10
+      },
+      "metrics": {
+        "beta": {
+          "request_count": 60,
+          "expected_count": 60,
+          "flagged": false,
+          "p50_ms": 98.19,
+          "p95_ms": 1408.74,
+          "error_count": 11,
+          "error_rate": 0.1833,
+          "server_p50_ms": 91.06,
+          "server_p95_ms": 1378.35
+        },
+        "acme": {
+          "request_count": 600,
+          "count_200": 45,
+          "count_429": 555,
+          "count_timeout": 0,
+          "count_errors": 0
+        },
+        "harness_overhead": {
+          "health_client_p50_ms": null,
+          "health_server_p50_ms": null,
+          "health_count": 0
+        }
+      },
+      "raw_records_count": 704,
+      "warmup_seconds": 2.0,
+      "run_seconds": 30.0,
+      "strategy_label": "Strategy A: Request-Count Limit"
+    },
+    {
+      "strategy": "request_count",
+      "load_type": "high_volume",
+      "repeat": 3,
+      "effective_config_at_run": {
+        "strategy": "request_count",
+        "requests_limit": 15,
+        "window_seconds": 10
+      },
+      "metrics": {
+        "beta": {
+          "request_count": 60,
+          "expected_count": 60,
+          "flagged": false,
+          "p50_ms": 259.19,
+          "p95_ms": 3236.04,
+          "error_count": 14,
+          "error_rate": 0.2333,
+          "server_p50_ms": 247.51,
+          "server_p95_ms": 3151.81
+        },
+        "acme": {
+          "request_count": 600,
+          "count_200": 45,
+          "count_429": 555,
+          "count_timeout": 0,
+          "count_errors": 0
+        },
+        "harness_overhead": {
+          "health_client_p50_ms": null,
+          "health_server_p50_ms": null,
+          "health_count": 0
+        }
+      },
+      "raw_records_count": 704,
+      "warmup_seconds": 2.0,
+      "run_seconds": 30.0,
+      "strategy_label": "Strategy A: Request-Count Limit"
+    },
+    {
+      "strategy": "request_count",
+      "load_type": "expensive",
+      "repeat": 1,
+      "effective_config_at_run": {
+        "strategy": "request_count",
+        "requests_limit": 15,
+        "window_seconds": 10
+      },
+      "metrics": {
+        "beta": {
+          "request_count": 60,
+          "expected_count": 60,
+          "flagged": false,
+          "p50_ms": 129.82,
+          "p95_ms": 157.24,
+          "error_count": 10,
+          "error_rate": 0.1667,
+          "server_p50_ms": 123.09,
+          "server_p95_ms": 149.5
+        },
+        "acme": {
+          "request_count": 12,
+          "count_200": 3,
+          "count_429": 9,
+          "count_timeout": 0,
+          "count_errors": 0
+        },
+        "harness_overhead": {
+          "health_client_p50_ms": null,
+          "health_server_p50_ms": null,
+          "health_count": 0
+        }
+      },
+      "raw_records_count": 78,
+      "warmup_seconds": 2.0,
+      "run_seconds": 30.0,
+      "strategy_label": "Strategy A: Request-Count Limit"
+    },
+    {
+      "strategy": "request_count",
+      "load_type": "expensive",
+      "repeat": 2,
+      "effective_config_at_run": {
+        "strategy": "request_count",
+        "requests_limit": 15,
+        "window_seconds": 10
+      },
+      "metrics": {
+        "beta": {
+          "request_count": 60,
+          "expected_count": 60,
+          "flagged": false,
+          "p50_ms": 120.01,
+          "p95_ms": 151.26,
+          "error_count": 12,
+          "error_rate": 0.2,
+          "server_p50_ms": 113.78,
+          "server_p95_ms": 140.74
+        },
+        "acme": {
+          "request_count": 12,
+          "count_200": 3,
+          "count_429": 9,
+          "count_timeout": 0,
+          "count_errors": 0
+        },
+        "harness_overhead": {
+          "health_client_p50_ms": null,
+          "health_server_p50_ms": null,
+          "health_count": 0
+        }
+      },
+      "raw_records_count": 78,
+      "warmup_seconds": 2.0,
+      "run_seconds": 30.0,
+      "strategy_label": "Strategy A: Request-Count Limit"
+    },
+    {
+      "strategy": "request_count",
+      "load_type": "expensive",
+      "repeat": 3,
+      "effective_config_at_run": {
+        "strategy": "request_count",
+        "requests_limit": 15,
+        "window_seconds": 10
+      },
+      "metrics": {
+        "beta": {
+          "request_count": 60,
+          "expected_count": 60,
+          "flagged": false,
+          "p50_ms": 125.62,
+          "p95_ms": 150.16,
+          "error_count": 15,
+          "error_rate": 0.25,
+          "server_p50_ms": 119.94,
+          "server_p95_ms": 142.76
+        },
+        "acme": {
+          "request_count": 12,
+          "count_200": 3,
+          "count_429": 9,
+          "count_timeout": 0,
+          "count_errors": 0
+        },
+        "harness_overhead": {
+          "health_client_p50_ms": null,
+          "health_server_p50_ms": null,
+          "health_count": 0
+        }
+      },
+      "raw_records_count": 78,
+      "warmup_seconds": 2.0,
+      "run_seconds": 30.0,
+      "strategy_label": "Strategy A: Request-Count Limit"
+    },
+    {
+      "strategy": "concurrency",
+      "load_type": "high_volume",
+      "repeat": 1,
+      "effective_config_at_run": {
+        "strategy": "concurrency",
+        "max_concurrency": 2
+      },
+      "metrics": {
+        "beta": {
+          "request_count": 60,
+          "expected_count": 60,
+          "flagged": false,
+          "p50_ms": 240.31,
+          "p95_ms": 276.8,
+          "error_count": 0,
+          "error_rate": 0.0,
+          "server_p50_ms": 229.53,
+          "server_p95_ms": 265.17
+        },
+        "acme": {
+          "request_count": 600,
+          "count_200": 151,
+          "count_429": 449,
+          "count_timeout": 0,
+          "count_errors": 0
+        },
+        "harness_overhead": {
+          "health_client_p50_ms": null,
+          "health_server_p50_ms": null,
+          "health_count": 0
+        }
+      },
+      "raw_records_count": 704,
+      "warmup_seconds": 2.0,
+      "run_seconds": 30.0,
+      "strategy_label": "Strategy B: Concurrency Limit"
+    },
+    {
+      "strategy": "concurrency",
+      "load_type": "high_volume",
+      "repeat": 2,
+      "effective_config_at_run": {
+        "strategy": "concurrency",
+        "max_concurrency": 2
+      },
+      "metrics": {
+        "beta": {
+          "request_count": 60,
+          "expected_count": 60,
+          "flagged": false,
+          "p50_ms": 208.42,
+          "p95_ms": 231.74,
+          "error_count": 0,
+          "error_rate": 0.0,
+          "server_p50_ms": 199.9,
+          "server_p95_ms": 222.23
+        },
+        "acme": {
+          "request_count": 600,
+          "count_200": 175,
+          "count_429": 425,
+          "count_timeout": 0,
+          "count_errors": 0
+        },
+        "harness_overhead": {
+          "health_client_p50_ms": null,
+          "health_server_p50_ms": null,
+          "health_count": 0
+        }
+      },
+      "raw_records_count": 704,
+      "warmup_seconds": 2.0,
+      "run_seconds": 30.0,
+      "strategy_label": "Strategy B: Concurrency Limit"
+    },
+    {
+      "strategy": "concurrency",
+      "load_type": "high_volume",
+      "repeat": 3,
+      "effective_config_at_run": {
+        "strategy": "concurrency",
+        "max_concurrency": 2
+      },
+      "metrics": {
+        "beta": {
+          "request_count": 60,
+          "expected_count": 60,
+          "flagged": false,
+          "p50_ms": 204.56,
+          "p95_ms": 224.03,
+          "error_count": 0,
+          "error_rate": 0.0,
+          "server_p50_ms": 195.57,
+          "server_p95_ms": 214.45
+        },
+        "acme": {
+          "request_count": 600,
+          "count_200": 177,
+          "count_429": 423,
+          "count_timeout": 0,
+          "count_errors": 0
+        },
+        "harness_overhead": {
+          "health_client_p50_ms": null,
+          "health_server_p50_ms": null,
+          "health_count": 0
+        }
+      },
+      "raw_records_count": 704,
+      "warmup_seconds": 2.0,
+      "run_seconds": 30.0,
+      "strategy_label": "Strategy B: Concurrency Limit"
+    },
+    {
+      "strategy": "concurrency",
+      "load_type": "expensive",
+      "repeat": 1,
+      "effective_config_at_run": {
+        "strategy": "concurrency",
+        "max_concurrency": 2
+      },
+      "metrics": {
+        "beta": {
+          "request_count": 60,
+          "expected_count": 60,
+          "flagged": false,
+          "p50_ms": 77.66,
+          "p95_ms": 90.93,
+          "error_count": 0,
+          "error_rate": 0.0,
+          "server_p50_ms": 72.99,
+          "server_p95_ms": 84.83
+        },
+        "acme": {
+          "request_count": 12,
+          "count_200": 12,
+          "count_429": 0,
+          "count_timeout": 0,
+          "count_errors": 0
+        },
+        "harness_overhead": {
+          "health_client_p50_ms": null,
+          "health_server_p50_ms": null,
+          "health_count": 0
+        }
+      },
+      "raw_records_count": 78,
+      "warmup_seconds": 2.0,
+      "run_seconds": 30.0,
+      "strategy_label": "Strategy B: Concurrency Limit"
+    },
+    {
+      "strategy": "concurrency",
+      "load_type": "expensive",
+      "repeat": 2,
+      "effective_config_at_run": {
+        "strategy": "concurrency",
+        "max_concurrency": 2
+      },
+      "metrics": {
+        "beta": {
+          "request_count": 60,
+          "expected_count": 60,
+          "flagged": false,
+          "p50_ms": 76.36,
+          "p95_ms": 91.31,
+          "error_count": 0,
+          "error_rate": 0.0,
+          "server_p50_ms": 71.85,
+          "server_p95_ms": 84.6
+        },
+        "acme": {
+          "request_count": 12,
+          "count_200": 12,
+          "count_429": 0,
+          "count_timeout": 0,
+          "count_errors": 0
+        },
+        "harness_overhead": {
+          "health_client_p50_ms": null,
+          "health_server_p50_ms": null,
+          "health_count": 0
+        }
+      },
+      "raw_records_count": 78,
+      "warmup_seconds": 2.0,
+      "run_seconds": 30.0,
+      "strategy_label": "Strategy B: Concurrency Limit"
+    },
+    {
+      "strategy": "concurrency",
+      "load_type": "expensive",
+      "repeat": 3,
+      "effective_config_at_run": {
+        "strategy": "concurrency",
+        "max_concurrency": 2
+      },
+      "metrics": {
+        "beta": {
+          "request_count": 60,
+          "expected_count": 60,
+          "flagged": false,
+          "p50_ms": 77.3,
+          "p95_ms": 91.03,
+          "error_count": 0,
+          "error_rate": 0.0,
+          "server_p50_ms": 72.47,
+          "server_p95_ms": 84.25
+        },
+        "acme": {
+          "request_count": 12,
+          "count_200": 12,
+          "count_429": 0,
+          "count_timeout": 0,
+          "count_errors": 0
+        },
+        "harness_overhead": {
+          "health_client_p50_ms": null,
+          "health_server_p50_ms": null,
+          "health_count": 0
+        }
+      },
+      "raw_records_count": 78,
+      "warmup_seconds": 2.0,
+      "run_seconds": 30.0,
+      "strategy_label": "Strategy B: Concurrency Limit"
+    },
+    {
+      "strategy": "statement_timeout",
+      "load_type": "high_volume",
+      "repeat": 1,
+      "effective_config_at_run": {
+        "strategy": "statement_timeout",
+        "timeout_ms": 250
+      },
+      "metrics": {
+        "beta": {
+          "request_count": 60,
+          "expected_count": 60,
+          "flagged": false,
+          "p50_ms": 20330.87,
+          "p95_ms": 26376.47,
+          "error_count": 45,
+          "error_rate": 0.75,
+          "server_p50_ms": 9422.71,
+          "server_p95_ms": 13688.04
+        },
+        "acme": {
+          "request_count": 600,
+          "count_200": 101,
+          "count_429": 0,
+          "count_timeout": 499,
+          "count_errors": 0
+        },
+        "harness_overhead": {
+          "health_client_p50_ms": null,
+          "health_server_p50_ms": null,
+          "health_count": 0
+        }
+      },
+      "raw_records_count": 704,
+      "warmup_seconds": 2.0,
+      "run_seconds": 30.0,
+      "strategy_label": "Strategy C: Statement Timeout"
+    },
+    {
+      "strategy": "statement_timeout",
+      "load_type": "high_volume",
+      "repeat": 2,
+      "effective_config_at_run": {
+        "strategy": "statement_timeout",
+        "timeout_ms": 250
+      },
+      "metrics": {
+        "beta": {
+          "request_count": 60,
+          "expected_count": 60,
+          "flagged": false,
+          "p50_ms": 20108.82,
+          "p95_ms": 26607.06,
+          "error_count": 46,
+          "error_rate": 0.7667,
+          "server_p50_ms": 10015.18,
+          "server_p95_ms": 13677.21
+        },
+        "acme": {
+          "request_count": 600,
+          "count_200": 107,
+          "count_429": 0,
+          "count_timeout": 493,
+          "count_errors": 0
+        },
+        "harness_overhead": {
+          "health_client_p50_ms": null,
+          "health_server_p50_ms": null,
+          "health_count": 0
+        }
+      },
+      "raw_records_count": 704,
+      "warmup_seconds": 2.0,
+      "run_seconds": 30.0,
+      "strategy_label": "Strategy C: Statement Timeout"
+    },
+    {
+      "strategy": "statement_timeout",
+      "load_type": "high_volume",
+      "repeat": 3,
+      "effective_config_at_run": {
+        "strategy": "statement_timeout",
+        "timeout_ms": 250
+      },
+      "metrics": {
+        "beta": {
+          "request_count": 60,
+          "expected_count": 60,
+          "flagged": false,
+          "p50_ms": 20523.81,
+          "p95_ms": 26815.51,
+          "error_count": 52,
+          "error_rate": 0.8667,
+          "server_p50_ms": 12030.77,
+          "server_p95_ms": 14505.84
+        },
+        "acme": {
+          "request_count": 600,
+          "count_200": 45,
+          "count_429": 0,
+          "count_timeout": 555,
+          "count_errors": 0
+        },
+        "harness_overhead": {
+          "health_client_p50_ms": null,
+          "health_server_p50_ms": null,
+          "health_count": 0
+        }
+      },
+      "raw_records_count": 704,
+      "warmup_seconds": 2.0,
+      "run_seconds": 30.0,
+      "strategy_label": "Strategy C: Statement Timeout"
+    },
+    {
+      "strategy": "statement_timeout",
+      "load_type": "expensive",
+      "repeat": 1,
+      "effective_config_at_run": {
+        "strategy": "statement_timeout",
+        "timeout_ms": 250
+      },
+      "metrics": {
+        "beta": {
+          "request_count": 60,
+          "expected_count": 60,
+          "flagged": false,
+          "p50_ms": 108.41,
+          "p95_ms": 136.54,
+          "error_count": 0,
+          "error_rate": 0.0,
+          "server_p50_ms": 102.15,
+          "server_p95_ms": 131.2
+        },
+        "acme": {
+          "request_count": 12,
+          "count_200": 0,
+          "count_429": 0,
+          "count_timeout": 12,
+          "count_errors": 0
+        },
+        "harness_overhead": {
+          "health_client_p50_ms": null,
+          "health_server_p50_ms": null,
+          "health_count": 0
+        }
+      },
+      "raw_records_count": 78,
+      "warmup_seconds": 2.0,
+      "run_seconds": 30.0,
+      "strategy_label": "Strategy C: Statement Timeout"
+    },
+    {
+      "strategy": "statement_timeout",
+      "load_type": "expensive",
+      "repeat": 2,
+      "effective_config_at_run": {
+        "strategy": "statement_timeout",
+        "timeout_ms": 250
+      },
+      "metrics": {
+        "beta": {
+          "request_count": 60,
+          "expected_count": 60,
+          "flagged": false,
+          "p50_ms": 112.27,
+          "p95_ms": 123.06,
+          "error_count": 0,
+          "error_rate": 0.0,
+          "server_p50_ms": 105.31,
+          "server_p95_ms": 114.2
+        },
+        "acme": {
+          "request_count": 12,
+          "count_200": 0,
+          "count_429": 0,
+          "count_timeout": 12,
+          "count_errors": 0
+        },
+        "harness_overhead": {
+          "health_client_p50_ms": null,
+          "health_server_p50_ms": null,
+          "health_count": 0
+        }
+      },
+      "raw_records_count": 78,
+      "warmup_seconds": 2.0,
+      "run_seconds": 30.0,
+      "strategy_label": "Strategy C: Statement Timeout"
+    },
+    {
+      "strategy": "statement_timeout",
+      "load_type": "expensive",
+      "repeat": 3,
+      "effective_config_at_run": {
+        "strategy": "statement_timeout",
+        "timeout_ms": 250
+      },
+      "metrics": {
+        "beta": {
+          "request_count": 60,
+          "expected_count": 60,
+          "flagged": false,
+          "p50_ms": 112.63,
+          "p95_ms": 130.19,
+          "error_count": 0,
+          "error_rate": 0.0,
+          "server_p50_ms": 106.13,
+          "server_p95_ms": 120.29
+        },
+        "acme": {
+          "request_count": 12,
+          "count_200": 0,
+          "count_429": 0,
+          "count_timeout": 12,
+          "count_errors": 0
+        },
+        "harness_overhead": {
+          "health_client_p50_ms": null,
+          "health_server_p50_ms": null,
+          "health_count": 0
+        }
+      },
+      "raw_records_count": 78,
+      "warmup_seconds": 2.0,
+      "run_seconds": 30.0,
+      "strategy_label": "Strategy C: Statement Timeout"
+    },
+    {
+      "strategy": "cost_budget",
+      "load_type": "high_volume",
+      "repeat": 1,
+      "effective_config_at_run": {
+        "strategy": "cost_budget",
+        "budget_per_window": 25,
+        "window_seconds": 10
+      },
+      "metrics": {
+        "beta": {
+          "request_count": 60,
+          "expected_count": 60,
+          "flagged": false,
+          "p50_ms": 4911.17,
+          "p95_ms": 9415.94,
+          "error_count": 0,
+          "error_rate": 0.0,
+          "server_p50_ms": 4836.42,
+          "server_p95_ms": 9319.74
+        },
+        "acme": {
+          "request_count": 600,
+          "count_200": 73,
+          "count_429": 525,
+          "count_timeout": 2,
+          "count_errors": 0
+        },
+        "harness_overhead": {
+          "health_client_p50_ms": null,
+          "health_server_p50_ms": null,
+          "health_count": 0
+        }
+      },
+      "raw_records_count": 704,
+      "warmup_seconds": 2.0,
+      "run_seconds": 30.0,
+      "strategy_label": "Strategy D: Cost-Based Limit"
+    },
+    {
+      "strategy": "cost_budget",
+      "load_type": "high_volume",
+      "repeat": 2,
+      "effective_config_at_run": {
+        "strategy": "cost_budget",
+        "budget_per_window": 25,
+        "window_seconds": 10
+      },
+      "metrics": {
+        "beta": {
+          "request_count": 60,
+          "expected_count": 60,
+          "flagged": false,
+          "p50_ms": 3670.22,
+          "p95_ms": 5970.44,
+          "error_count": 0,
+          "error_rate": 0.0,
+          "server_p50_ms": 3580.39,
+          "server_p95_ms": 5908.62
+        },
+        "acme": {
+          "request_count": 600,
+          "count_200": 75,
+          "count_429": 525,
+          "count_timeout": 0,
+          "count_errors": 0
+        },
+        "harness_overhead": {
+          "health_client_p50_ms": null,
+          "health_server_p50_ms": null,
+          "health_count": 0
+        }
+      },
+      "raw_records_count": 704,
+      "warmup_seconds": 2.0,
+      "run_seconds": 30.0,
+      "strategy_label": "Strategy D: Cost-Based Limit"
+    },
+    {
+      "strategy": "cost_budget",
+      "load_type": "high_volume",
+      "repeat": 3,
+      "effective_config_at_run": {
+        "strategy": "cost_budget",
+        "budget_per_window": 25,
+        "window_seconds": 10
+      },
+      "metrics": {
+        "beta": {
+          "request_count": 60,
+          "expected_count": 60,
+          "flagged": false,
+          "p50_ms": 2342.3,
+          "p95_ms": 4220.68,
+          "error_count": 0,
+          "error_rate": 0.0,
+          "server_p50_ms": 2286.78,
+          "server_p95_ms": 4154.8
+        },
+        "acme": {
+          "request_count": 600,
+          "count_200": 75,
+          "count_429": 525,
+          "count_timeout": 0,
+          "count_errors": 0
+        },
+        "harness_overhead": {
+          "health_client_p50_ms": null,
+          "health_server_p50_ms": null,
+          "health_count": 0
+        }
+      },
+      "raw_records_count": 704,
+      "warmup_seconds": 2.0,
+      "run_seconds": 30.0,
+      "strategy_label": "Strategy D: Cost-Based Limit"
+    },
+    {
+      "strategy": "cost_budget",
+      "load_type": "expensive",
+      "repeat": 1,
+      "effective_config_at_run": {
+        "strategy": "cost_budget",
+        "budget_per_window": 25,
+        "window_seconds": 10
+      },
+      "metrics": {
+        "beta": {
+          "request_count": 60,
+          "expected_count": 60,
+          "flagged": false,
+          "p50_ms": 110.08,
+          "p95_ms": 126.21,
+          "error_count": 0,
+          "error_rate": 0.0,
+          "server_p50_ms": 103.73,
+          "server_p95_ms": 115.87
+        },
+        "acme": {
+          "request_count": 12,
+          "count_200": 6,
+          "count_429": 6,
+          "count_timeout": 0,
+          "count_errors": 0
+        },
+        "harness_overhead": {
+          "health_client_p50_ms": null,
+          "health_server_p50_ms": null,
+          "health_count": 0
+        }
+      },
+      "raw_records_count": 78,
+      "warmup_seconds": 2.0,
+      "run_seconds": 30.0,
+      "strategy_label": "Strategy D: Cost-Based Limit"
+    },
+    {
+      "strategy": "cost_budget",
+      "load_type": "expensive",
+      "repeat": 2,
+      "effective_config_at_run": {
+        "strategy": "cost_budget",
+        "budget_per_window": 25,
+        "window_seconds": 10
+      },
+      "metrics": {
+        "beta": {
+          "request_count": 60,
+          "expected_count": 60,
+          "flagged": false,
+          "p50_ms": 113.57,
+          "p95_ms": 126.55,
+          "error_count": 0,
+          "error_rate": 0.0,
+          "server_p50_ms": 106.29,
+          "server_p95_ms": 120.36
+        },
+        "acme": {
+          "request_count": 12,
+          "count_200": 6,
+          "count_429": 6,
+          "count_timeout": 0,
+          "count_errors": 0
+        },
+        "harness_overhead": {
+          "health_client_p50_ms": null,
+          "health_server_p50_ms": null,
+          "health_count": 0
+        }
+      },
+      "raw_records_count": 78,
+      "warmup_seconds": 2.0,
+      "run_seconds": 30.0,
+      "strategy_label": "Strategy D: Cost-Based Limit"
+    },
+    {
+      "strategy": "cost_budget",
+      "load_type": "expensive",
+      "repeat": 3,
+      "effective_config_at_run": {
+        "strategy": "cost_budget",
+        "budget_per_window": 25,
+        "window_seconds": 10
+      },
+      "metrics": {
+        "beta": {
+          "request_count": 60,
+          "expected_count": 60,
+          "flagged": false,
+          "p50_ms": 113.31,
+          "p95_ms": 125.15,
+          "error_count": 0,
+          "error_rate": 0.0,
+          "server_p50_ms": 106.88,
+          "server_p95_ms": 114.96
+        },
+        "acme": {
+          "request_count": 12,
+          "count_200": 6,
+          "count_429": 6,
+          "count_timeout": 0,
+          "count_errors": 0
+        },
+        "harness_overhead": {
+          "health_client_p50_ms": null,
+          "health_server_p50_ms": null,
+          "health_count": 0
+        }
+      },
+      "raw_records_count": 78,
+      "warmup_seconds": 2.0,
+      "run_seconds": 30.0,
+      "strategy_label": "Strategy D: Cost-Based Limit"
+    },
+    {
+      "strategy": "combined",
+      "load_type": "high_volume",
+      "repeat": 1,
+      "effective_config_at_run": {
+        "strategy": "combined",
+        "requests_limit": 15,
+        "window_seconds": 10,
+        "max_concurrency": 2,
+        "timeout_ms": 250
+      },
+      "metrics": {
+        "beta": {
+          "request_count": 60,
+          "expected_count": 60,
+          "flagged": false,
+          "p50_ms": 131.22,
+          "p95_ms": 331.0,
+          "error_count": 10,
+          "error_rate": 0.1667,
+          "server_p50_ms": 123.44,
+          "server_p95_ms": 322.12
+        },
+        "acme": {
+          "request_count": 600,
+          "count_200": 12,
+          "count_429": 588,
+          "count_timeout": 0,
+          "count_errors": 0
+        },
+        "harness_overhead": {
+          "health_client_p50_ms": null,
+          "health_server_p50_ms": null,
+          "health_count": 0
+        }
+      },
+      "raw_records_count": 704,
+      "warmup_seconds": 2.0,
+      "run_seconds": 30.0,
+      "strategy_label": "Strategy E: Combined Multi-Layer"
+    },
+    {
+      "strategy": "combined",
+      "load_type": "high_volume",
+      "repeat": 2,
+      "effective_config_at_run": {
+        "strategy": "combined",
+        "requests_limit": 15,
+        "window_seconds": 10,
+        "max_concurrency": 2,
+        "timeout_ms": 250
+      },
+      "metrics": {
+        "beta": {
+          "request_count": 60,
+          "expected_count": 60,
+          "flagged": false,
+          "p50_ms": 131.28,
+          "p95_ms": 328.99,
+          "error_count": 15,
+          "error_rate": 0.25,
+          "server_p50_ms": 123.48,
+          "server_p95_ms": 317.5
+        },
+        "acme": {
+          "request_count": 600,
+          "count_200": 12,
+          "count_429": 588,
+          "count_timeout": 0,
+          "count_errors": 0
+        },
+        "harness_overhead": {
+          "health_client_p50_ms": null,
+          "health_server_p50_ms": null,
+          "health_count": 0
+        }
+      },
+      "raw_records_count": 704,
+      "warmup_seconds": 2.0,
+      "run_seconds": 30.0,
+      "strategy_label": "Strategy E: Combined Multi-Layer"
+    },
+    {
+      "strategy": "combined",
+      "load_type": "high_volume",
+      "repeat": 3,
+      "effective_config_at_run": {
+        "strategy": "combined",
+        "requests_limit": 15,
+        "window_seconds": 10,
+        "max_concurrency": 2,
+        "timeout_ms": 250
+      },
+      "metrics": {
+        "beta": {
+          "request_count": 60,
+          "expected_count": 60,
+          "flagged": false,
+          "p50_ms": 132.39,
+          "p95_ms": 348.87,
+          "error_count": 10,
+          "error_rate": 0.1667,
+          "server_p50_ms": 124.67,
+          "server_p95_ms": 336.01
+        },
+        "acme": {
+          "request_count": 600,
+          "count_200": 12,
+          "count_429": 588,
+          "count_timeout": 0,
+          "count_errors": 0
+        },
+        "harness_overhead": {
+          "health_client_p50_ms": null,
+          "health_server_p50_ms": null,
+          "health_count": 0
+        }
+      },
+      "raw_records_count": 704,
+      "warmup_seconds": 2.0,
+      "run_seconds": 30.0,
+      "strategy_label": "Strategy E: Combined Multi-Layer"
+    },
+    {
+      "strategy": "combined",
+      "load_type": "expensive",
+      "repeat": 1,
+      "effective_config_at_run": {
+        "strategy": "combined",
+        "requests_limit": 15,
+        "window_seconds": 10,
+        "max_concurrency": 2,
+        "timeout_ms": 250
+      },
+      "metrics": {
+        "beta": {
+          "request_count": 60,
+          "expected_count": 60,
+          "flagged": false,
+          "p50_ms": 113.76,
+          "p95_ms": 130.29,
+          "error_count": 13,
+          "error_rate": 0.2167,
+          "server_p50_ms": 106.28,
+          "server_p95_ms": 121.63
+        },
+        "acme": {
+          "request_count": 12,
+          "count_200": 0,
+          "count_429": 9,
+          "count_timeout": 3,
+          "count_errors": 0
+        },
+        "harness_overhead": {
+          "health_client_p50_ms": null,
+          "health_server_p50_ms": null,
+          "health_count": 0
+        }
+      },
+      "raw_records_count": 78,
+      "warmup_seconds": 2.0,
+      "run_seconds": 30.0,
+      "strategy_label": "Strategy E: Combined Multi-Layer"
+    },
+    {
+      "strategy": "combined",
+      "load_type": "expensive",
+      "repeat": 2,
+      "effective_config_at_run": {
+        "strategy": "combined",
+        "requests_limit": 15,
+        "window_seconds": 10,
+        "max_concurrency": 2,
+        "timeout_ms": 250
+      },
+      "metrics": {
+        "beta": {
+          "request_count": 60,
+          "expected_count": 60,
+          "flagged": false,
+          "p50_ms": 112.9,
+          "p95_ms": 132.47,
+          "error_count": 15,
+          "error_rate": 0.25,
+          "server_p50_ms": 105.54,
+          "server_p95_ms": 122.14
+        },
+        "acme": {
+          "request_count": 12,
+          "count_200": 0,
+          "count_429": 9,
+          "count_timeout": 3,
+          "count_errors": 0
+        },
+        "harness_overhead": {
+          "health_client_p50_ms": null,
+          "health_server_p50_ms": null,
+          "health_count": 0
+        }
+      },
+      "raw_records_count": 78,
+      "warmup_seconds": 2.0,
+      "run_seconds": 30.0,
+      "strategy_label": "Strategy E: Combined Multi-Layer"
+    },
+    {
+      "strategy": "combined",
+      "load_type": "expensive",
+      "repeat": 3,
+      "effective_config_at_run": {
+        "strategy": "combined",
+        "requests_limit": 15,
+        "window_seconds": 10,
+        "max_concurrency": 2,
+        "timeout_ms": 250
+      },
+      "metrics": {
+        "beta": {
+          "request_count": 60,
+          "expected_count": 60,
+          "flagged": false,
+          "p50_ms": 112.93,
+          "p95_ms": 129.73,
+          "error_count": 14,
+          "error_rate": 0.2333,
+          "server_p50_ms": 106.12,
+          "server_p95_ms": 118.32
+        },
+        "acme": {
+          "request_count": 12,
+          "count_200": 0,
+          "count_429": 9,
+          "count_timeout": 3,
+          "count_errors": 0
+        },
+        "harness_overhead": {
+          "health_client_p50_ms": null,
+          "health_server_p50_ms": null,
+          "health_count": 0
+        }
+      },
+      "raw_records_count": 78,
+      "warmup_seconds": 2.0,
+      "run_seconds": 30.0,
+      "strategy_label": "Strategy E: Combined Multi-Layer"
+    }
+  ]
+}

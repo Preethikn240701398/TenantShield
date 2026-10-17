@@ -42,3 +42,45 @@ def client() -> TestClient:
     """
     with TestClient(app) as test_client:
         yield test_client
+
+
+@pytest.fixture(scope="session")
+def acme_auth(client: TestClient):
+    """Authenticates Acme user and returns token and user profile."""
+    from app.core.config import settings
+    resp = client.post(
+        "/auth/login",
+        json={"email": settings.DEV_ACME_USER_EMAIL, "password": settings.DEV_ACME_USER_PASSWORD},
+    )
+    assert resp.status_code == 200
+    token = resp.json()["access_token"]
+    user_info = client.get("/auth/me", headers={"Authorization": f"Bearer {token}"}).json()
+    return {"token": token, "headers": {"Authorization": f"Bearer {token}"}, "user": user_info}
+
+
+@pytest.fixture(scope="session")
+def beta_auth(client: TestClient):
+    """Authenticates Beta user and returns token and user profile."""
+    from app.core.config import settings
+    resp = client.post(
+        "/auth/login",
+        json={"email": settings.DEV_BETA_USER_EMAIL, "password": settings.DEV_BETA_USER_PASSWORD},
+    )
+    assert resp.status_code == 200
+    token = resp.json()["access_token"]
+    user_info = client.get("/auth/me", headers={"Authorization": f"Bearer {token}"}).json()
+    return {"token": token, "headers": {"Authorization": f"Bearer {token}"}, "user": user_info}
+
+
+@pytest.fixture(scope="session")
+def admin_auth(client: TestClient):
+    """Authenticates Platform Admin user and returns token and user profile."""
+    from app.core.config import settings
+    resp = client.post(
+        "/auth/login",
+        json={"email": settings.DEV_ADMIN_USER_EMAIL, "password": settings.DEV_ADMIN_USER_PASSWORD},
+    )
+    assert resp.status_code == 200
+    token = resp.json()["access_token"]
+    user_info = client.get("/auth/me", headers={"Authorization": f"Bearer {token}"}).json()
+    return {"token": token, "headers": {"Authorization": f"Bearer {token}"}, "user": user_info}

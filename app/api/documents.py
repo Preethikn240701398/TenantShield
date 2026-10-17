@@ -256,6 +256,44 @@ async def list_documents(
 
 
 @router.get(
+    "/analytics/heavy-report",
+    summary="Generate Heavy Tenant Document Report",
+    description="Deliberately expensive legitimate reporting endpoint performing CPU-intensive cryptographic aggregation over database series.",
+)
+async def generate_heavy_report(
+    current_user: AuthenticatedUser = Depends(get_current_user),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    """
+    Legitimate database report endpoint that aggregates and hashes document records
+    across a series of 50,000 computation cycles in PostgreSQL.
+    Strictly isolated to current_user.tenant_id via get_tenant_db and RLS.
+    """
+    result = await db.execute(
+        text(
+            """
+            SELECT 
+                count(distinct md5(coalesce(d.ciphertext, 'seed') || s.n::text || repeat('x', 200))) as computation_score,
+                count(*) as sample_count
+            FROM (
+                (SELECT ciphertext FROM documents LIMIT 1)
+                UNION ALL
+                (SELECT 'baseline_tenant_record')
+            ) d
+            CROSS JOIN generate_series(1, 45000) AS s(n)
+            """
+        )
+    )
+    row = result.fetchone()
+    return {
+        "status": "success",
+        "tenant_id": str(current_user.tenant_id),
+        "computation_score": row[0] if row else 0,
+        "sample_count": row[1] if row else 0,
+    }
+
+
+@router.get(
     "/{document_id}",
     response_model=DocumentResponse,
     summary="Get Tenant Document",
@@ -273,13 +311,26 @@ async def get_document(
     """
     client_ip = request.client.host if request.client else None
 
-    result = await db.execute(
-        text(
-            "SELECT id, tenant_id, owner_id, title, key_version, nonce, ciphertext, created_at, updated_at "
-            "FROM documents WHERE id = :document_id"
-        ),
-        {"document_id": str(document_id)},
-    )
+    use_query_filter = settings.ENABLE_QUERY_TENANT_FILTER
+    if not use_query_filter and settings.APP_ENV.lower() != "lab":
+        use_query_filter = True
+
+    if use_query_filter:
+        result = await db.execute(
+            text(
+                "SELECT id, tenant_id, owner_id, title, key_version, nonce, ciphertext, created_at, updated_at "
+                "FROM documents WHERE id = :document_id AND tenant_id = :tenant_id"
+            ),
+            {"document_id": str(document_id), "tenant_id": str(current_user.tenant_id)},
+        )
+    else:
+        result = await db.execute(
+            text(
+                "SELECT id, tenant_id, owner_id, title, key_version, nonce, ciphertext, created_at, updated_at "
+                "FROM documents WHERE id = :document_id"
+            ),
+            {"document_id": str(document_id)},
+        )
     row = result.fetchone()
 
     if row is None:
@@ -372,13 +423,26 @@ async def update_document(
     client_ip = request.client.host if request.client else None
 
     # 1. Fetch document to verify ownership
-    result = await db.execute(
-        text(
-            "SELECT id, tenant_id, owner_id, title, key_version, nonce, ciphertext, created_at, updated_at "
-            "FROM documents WHERE id = :document_id"
-        ),
-        {"document_id": str(document_id)},
-    )
+    use_query_filter = settings.ENABLE_QUERY_TENANT_FILTER
+    if not use_query_filter and settings.APP_ENV.lower() != "lab":
+        use_query_filter = True
+
+    if use_query_filter:
+        result = await db.execute(
+            text(
+                "SELECT id, tenant_id, owner_id, title, key_version, nonce, ciphertext, created_at, updated_at "
+                "FROM documents WHERE id = :document_id AND tenant_id = :tenant_id"
+            ),
+            {"document_id": str(document_id), "tenant_id": str(current_user.tenant_id)},
+        )
+    else:
+        result = await db.execute(
+            text(
+                "SELECT id, tenant_id, owner_id, title, key_version, nonce, ciphertext, created_at, updated_at "
+                "FROM documents WHERE id = :document_id"
+            ),
+            {"document_id": str(document_id)},
+        )
     row = result.fetchone()
 
     if row is None:
@@ -437,22 +501,39 @@ async def update_document(
         else:
             decrypted_content = ""
 
-    update_result = await db.execute(
-        text(
-            "UPDATE documents "
-            "SET title = :title, key_version = :key_version, nonce = :nonce, ciphertext = :ciphertext, updated_at = CURRENT_TIMESTAMP "
-            "WHERE id = :document_id AND tenant_id = :tenant_id "
-            "RETURNING id, tenant_id, owner_id, title, created_at, updated_at"
-        ),
-        {
-            "document_id": str(document_id),
-            "tenant_id": str(current_user.tenant_id),
-            "title": new_title,
-            "key_version": key_version,
-            "nonce": doc_nonce,
-            "ciphertext": ciphertext,
-        },
-    )
+    if use_query_filter:
+        update_result = await db.execute(
+            text(
+                "UPDATE documents "
+                "SET title = :title, key_version = :key_version, nonce = :nonce, ciphertext = :ciphertext, updated_at = CURRENT_TIMESTAMP "
+                "WHERE id = :document_id AND tenant_id = :tenant_id "
+                "RETURNING id, tenant_id, owner_id, title, created_at, updated_at"
+            ),
+            {
+                "document_id": str(document_id),
+                "tenant_id": str(current_user.tenant_id),
+                "title": new_title,
+                "key_version": key_version,
+                "nonce": doc_nonce,
+                "ciphertext": ciphertext,
+            },
+        )
+    else:
+        update_result = await db.execute(
+            text(
+                "UPDATE documents "
+                "SET title = :title, key_version = :key_version, nonce = :nonce, ciphertext = :ciphertext, updated_at = CURRENT_TIMESTAMP "
+                "WHERE id = :document_id "
+                "RETURNING id, tenant_id, owner_id, title, created_at, updated_at"
+            ),
+            {
+                "document_id": str(document_id),
+                "title": new_title,
+                "key_version": key_version,
+                "nonce": doc_nonce,
+                "ciphertext": ciphertext,
+            },
+        )
     updated_row = update_result.fetchone()
     if updated_row is None:
         raise HTTPException(
@@ -488,10 +569,20 @@ async def delete_document(
     client_ip = request.client.host if request.client else None
 
     # 1. Fetch document to verify ownership
-    result = await db.execute(
-        text("SELECT id, tenant_id FROM documents WHERE id = :document_id"),
-        {"document_id": str(document_id)},
-    )
+    use_query_filter = settings.ENABLE_QUERY_TENANT_FILTER
+    if not use_query_filter and settings.APP_ENV.lower() != "lab":
+        use_query_filter = True
+
+    if use_query_filter:
+        result = await db.execute(
+            text("SELECT id, tenant_id FROM documents WHERE id = :document_id AND tenant_id = :tenant_id"),
+            {"document_id": str(document_id), "tenant_id": str(current_user.tenant_id)},
+        )
+    else:
+        result = await db.execute(
+            text("SELECT id, tenant_id FROM documents WHERE id = :document_id"),
+            {"document_id": str(document_id)},
+        )
     row = result.fetchone()
 
     if row is None:
@@ -520,13 +611,21 @@ async def delete_document(
         raise
 
     # 3. Delete document
-    del_res = await db.execute(
-        text("DELETE FROM documents WHERE id = :document_id AND tenant_id = :tenant_id"),
-        {
-            "document_id": str(document_id),
-            "tenant_id": str(current_user.tenant_id),
-        },
-    )
+    if use_query_filter:
+        del_res = await db.execute(
+            text("DELETE FROM documents WHERE id = :document_id AND tenant_id = :tenant_id"),
+            {
+                "document_id": str(document_id),
+                "tenant_id": str(current_user.tenant_id),
+            },
+        )
+    else:
+        del_res = await db.execute(
+            text("DELETE FROM documents WHERE id = :document_id"),
+            {
+                "document_id": str(document_id),
+            },
+        )
     if del_res.rowcount == 0:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

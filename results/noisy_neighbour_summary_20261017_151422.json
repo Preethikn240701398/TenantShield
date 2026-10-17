@@ -1,0 +1,930 @@
+{
+  "title": "TenantShield Noisy-Neighbour Experiment Aggregated Summary",
+  "generated_at_utc": "2026-10-17T15:14:22.805538+00:00",
+  "environment": {
+    "cpu_model": "AMD Ryzen 7 7840HS w/ Radeon 780M Graphics",
+    "core_count": 16,
+    "ram_gb": 15.29,
+    "windows_version": "Windows 11 (Build 10.0.26300)",
+    "python_version": "3.13.2",
+    "postgres_version": "PostgreSQL 16.15, compiled by Visual C++ build 1944, 64-bit",
+    "memurai_version": "Memurai 8.2.0 (Redis 8.2.10)",
+    "server_workers": 1
+  },
+  "plan": {
+    "warmup_seconds": 2.0,
+    "run_seconds": 30.0,
+    "num_repeats": 3,
+    "beta_rps": 2.0,
+    "beta_expected_requests_per_run": 60,
+    "measurement_window_note": "30.0s window \u2192 ~60 Beta samples per run"
+  },
+  "summaries": [
+    {
+      "strategy": "none",
+      "load_type": "quiet_baseline",
+      "repeats_count": 3,
+      "beta_request_counts": [
+        60,
+        60,
+        60
+      ],
+      "beta_count_flagged": false,
+      "beta_p50_ms": {
+        "mean": 81.92,
+        "min": 81.42,
+        "max": 82.92,
+        "std": 0.86
+      },
+      "beta_p95_ms": {
+        "mean": 89.23,
+        "min": 88.08,
+        "max": 90.68,
+        "std": 1.32
+      },
+      "beta_error_rate": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "std": 0.0
+      },
+      "beta_server_p95_ms": {
+        "mean": 83.2,
+        "min": 81.97,
+        "max": 84.83,
+        "std": 1.47
+      },
+      "acme_429": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "std": 0.0
+      },
+      "acme_timeouts": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "std": 0.0
+      },
+      "acme_errors": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "std": 0.0
+      },
+      "acme_200": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "std": 0.0
+      },
+      "effective_config_sample": {
+        "strategy": "none",
+        "limits": "none"
+      },
+      "strategy_label": "Quiet-Only Baseline (Beta alone)"
+    },
+    {
+      "strategy": "none",
+      "load_type": "harness_overhead",
+      "repeats_count": 3,
+      "beta_request_counts": [
+        60,
+        60,
+        60
+      ],
+      "beta_count_flagged": false,
+      "beta_p50_ms": {
+        "mean": 6.76,
+        "min": 5.81,
+        "max": 7.25,
+        "std": 0.82
+      },
+      "beta_p95_ms": {
+        "mean": 8.72,
+        "min": 7.77,
+        "max": 9.65,
+        "std": 0.94
+      },
+      "beta_error_rate": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "std": 0.0
+      },
+      "beta_server_p95_ms": {
+        "mean": 3.54,
+        "min": 3.32,
+        "max": 3.74,
+        "std": 0.21
+      },
+      "acme_429": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "std": 0.0
+      },
+      "acme_timeouts": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "std": 0.0
+      },
+      "acme_errors": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "std": 0.0
+      },
+      "acme_200": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "std": 0.0
+      },
+      "effective_config_sample": {
+        "strategy": "none",
+        "limits": "none"
+      },
+      "strategy_label": "Harness Overhead (/health)"
+    },
+    {
+      "strategy": "none",
+      "load_type": "high_volume",
+      "repeats_count": 3,
+      "beta_request_counts": [
+        60,
+        60,
+        60
+      ],
+      "beta_count_flagged": false,
+      "beta_p50_ms": {
+        "mean": 20281.08,
+        "min": 20246.17,
+        "max": 20323.91,
+        "std": 39.47
+      },
+      "beta_p95_ms": {
+        "mean": 26655.01,
+        "min": 26589.45,
+        "max": 26688.15,
+        "std": 56.78
+      },
+      "beta_error_rate": {
+        "mean": 0.84,
+        "min": 0.8,
+        "max": 0.87,
+        "std": 0.03
+      },
+      "beta_server_p95_ms": {
+        "mean": 12970.43,
+        "min": 12651.24,
+        "max": 13360.22,
+        "std": 359.72
+      },
+      "acme_429": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "std": 0.0
+      },
+      "acme_timeouts": {
+        "mean": 532.33,
+        "min": 531.0,
+        "max": 534.0,
+        "std": 1.53
+      },
+      "acme_errors": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "std": 0.0
+      },
+      "acme_200": {
+        "mean": 67.33,
+        "min": 66.0,
+        "max": 68.0,
+        "std": 1.15
+      },
+      "effective_config_sample": {
+        "strategy": "none",
+        "limits": "none"
+      },
+      "strategy_label": "Baseline (No Limit)"
+    },
+    {
+      "strategy": "none",
+      "load_type": "expensive",
+      "repeats_count": 3,
+      "beta_request_counts": [
+        60,
+        60,
+        60
+      ],
+      "beta_count_flagged": false,
+      "beta_p50_ms": {
+        "mean": 76.48,
+        "min": 75.94,
+        "max": 77.06,
+        "std": 0.56
+      },
+      "beta_p95_ms": {
+        "mean": 91.99,
+        "min": 88.74,
+        "max": 93.97,
+        "std": 2.84
+      },
+      "beta_error_rate": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "std": 0.0
+      },
+      "beta_server_p95_ms": {
+        "mean": 86.01,
+        "min": 84.31,
+        "max": 86.94,
+        "std": 1.47
+      },
+      "acme_429": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "std": 0.0
+      },
+      "acme_timeouts": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "std": 0.0
+      },
+      "acme_errors": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "std": 0.0
+      },
+      "acme_200": {
+        "mean": 12.0,
+        "min": 12.0,
+        "max": 12.0,
+        "std": 0.0
+      },
+      "effective_config_sample": {
+        "strategy": "none",
+        "limits": "none"
+      },
+      "strategy_label": "Baseline (No Limit)"
+    },
+    {
+      "strategy": "request_count",
+      "load_type": "high_volume",
+      "repeats_count": 3,
+      "beta_request_counts": [
+        60,
+        60,
+        60
+      ],
+      "beta_count_flagged": false,
+      "beta_p50_ms": {
+        "mean": 150.48,
+        "min": 94.06,
+        "max": 259.19,
+        "std": 94.17
+      },
+      "beta_p95_ms": {
+        "mean": 1970.83,
+        "min": 1267.7,
+        "max": 3236.04,
+        "std": 1097.97
+      },
+      "beta_error_rate": {
+        "mean": 0.22,
+        "min": 0.18,
+        "max": 0.23,
+        "std": 0.03
+      },
+      "beta_server_p95_ms": {
+        "mean": 1920.48,
+        "min": 1231.27,
+        "max": 3151.81,
+        "std": 1068.9
+      },
+      "acme_429": {
+        "mean": 555.0,
+        "min": 555.0,
+        "max": 555.0,
+        "std": 0.0
+      },
+      "acme_timeouts": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "std": 0.0
+      },
+      "acme_errors": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "std": 0.0
+      },
+      "acme_200": {
+        "mean": 45.0,
+        "min": 45.0,
+        "max": 45.0,
+        "std": 0.0
+      },
+      "effective_config_sample": {
+        "strategy": "request_count",
+        "requests_limit": 15,
+        "window_seconds": 10
+      },
+      "strategy_label": "Strategy A: Request-Count Limit"
+    },
+    {
+      "strategy": "request_count",
+      "load_type": "expensive",
+      "repeats_count": 3,
+      "beta_request_counts": [
+        60,
+        60,
+        60
+      ],
+      "beta_count_flagged": false,
+      "beta_p50_ms": {
+        "mean": 125.15,
+        "min": 120.01,
+        "max": 129.82,
+        "std": 4.92
+      },
+      "beta_p95_ms": {
+        "mean": 152.89,
+        "min": 150.16,
+        "max": 157.24,
+        "std": 3.81
+      },
+      "beta_error_rate": {
+        "mean": 0.21,
+        "min": 0.17,
+        "max": 0.25,
+        "std": 0.04
+      },
+      "beta_server_p95_ms": {
+        "mean": 144.33,
+        "min": 140.74,
+        "max": 149.5,
+        "std": 4.59
+      },
+      "acme_429": {
+        "mean": 9.0,
+        "min": 9.0,
+        "max": 9.0,
+        "std": 0.0
+      },
+      "acme_timeouts": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "std": 0.0
+      },
+      "acme_errors": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "std": 0.0
+      },
+      "acme_200": {
+        "mean": 3.0,
+        "min": 3.0,
+        "max": 3.0,
+        "std": 0.0
+      },
+      "effective_config_sample": {
+        "strategy": "request_count",
+        "requests_limit": 15,
+        "window_seconds": 10
+      },
+      "strategy_label": "Strategy A: Request-Count Limit"
+    },
+    {
+      "strategy": "concurrency",
+      "load_type": "high_volume",
+      "repeats_count": 3,
+      "beta_request_counts": [
+        60,
+        60,
+        60
+      ],
+      "beta_count_flagged": false,
+      "beta_p50_ms": {
+        "mean": 217.76,
+        "min": 204.56,
+        "max": 240.31,
+        "std": 19.62
+      },
+      "beta_p95_ms": {
+        "mean": 244.19,
+        "min": 224.03,
+        "max": 276.8,
+        "std": 28.5
+      },
+      "beta_error_rate": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "std": 0.0
+      },
+      "beta_server_p95_ms": {
+        "mean": 233.95,
+        "min": 214.45,
+        "max": 265.17,
+        "std": 27.32
+      },
+      "acme_429": {
+        "mean": 432.33,
+        "min": 423.0,
+        "max": 449.0,
+        "std": 14.47
+      },
+      "acme_timeouts": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "std": 0.0
+      },
+      "acme_errors": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "std": 0.0
+      },
+      "acme_200": {
+        "mean": 167.67,
+        "min": 151.0,
+        "max": 177.0,
+        "std": 14.47
+      },
+      "effective_config_sample": {
+        "strategy": "concurrency",
+        "max_concurrency": 2
+      },
+      "strategy_label": "Strategy B: Concurrency Limit"
+    },
+    {
+      "strategy": "concurrency",
+      "load_type": "expensive",
+      "repeats_count": 3,
+      "beta_request_counts": [
+        60,
+        60,
+        60
+      ],
+      "beta_count_flagged": false,
+      "beta_p50_ms": {
+        "mean": 77.11,
+        "min": 76.36,
+        "max": 77.66,
+        "std": 0.67
+      },
+      "beta_p95_ms": {
+        "mean": 91.09,
+        "min": 90.93,
+        "max": 91.31,
+        "std": 0.2
+      },
+      "beta_error_rate": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "std": 0.0
+      },
+      "beta_server_p95_ms": {
+        "mean": 84.56,
+        "min": 84.25,
+        "max": 84.83,
+        "std": 0.29
+      },
+      "acme_429": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "std": 0.0
+      },
+      "acme_timeouts": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "std": 0.0
+      },
+      "acme_errors": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "std": 0.0
+      },
+      "acme_200": {
+        "mean": 12.0,
+        "min": 12.0,
+        "max": 12.0,
+        "std": 0.0
+      },
+      "effective_config_sample": {
+        "strategy": "concurrency",
+        "max_concurrency": 2
+      },
+      "strategy_label": "Strategy B: Concurrency Limit"
+    },
+    {
+      "strategy": "statement_timeout",
+      "load_type": "high_volume",
+      "repeats_count": 3,
+      "beta_request_counts": [
+        60,
+        60,
+        60
+      ],
+      "beta_count_flagged": false,
+      "beta_p50_ms": {
+        "mean": 20321.17,
+        "min": 20108.82,
+        "max": 20523.81,
+        "std": 207.67
+      },
+      "beta_p95_ms": {
+        "mean": 26599.68,
+        "min": 26376.47,
+        "max": 26815.51,
+        "std": 219.61
+      },
+      "beta_error_rate": {
+        "mean": 0.79,
+        "min": 0.75,
+        "max": 0.87,
+        "std": 0.06
+      },
+      "beta_server_p95_ms": {
+        "mean": 13957.03,
+        "min": 13677.21,
+        "max": 14505.84,
+        "std": 475.31
+      },
+      "acme_429": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "std": 0.0
+      },
+      "acme_timeouts": {
+        "mean": 515.67,
+        "min": 493.0,
+        "max": 555.0,
+        "std": 34.2
+      },
+      "acme_errors": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "std": 0.0
+      },
+      "acme_200": {
+        "mean": 84.33,
+        "min": 45.0,
+        "max": 107.0,
+        "std": 34.2
+      },
+      "effective_config_sample": {
+        "strategy": "statement_timeout",
+        "timeout_ms": 250
+      },
+      "strategy_label": "Strategy C: Statement Timeout"
+    },
+    {
+      "strategy": "statement_timeout",
+      "load_type": "expensive",
+      "repeats_count": 3,
+      "beta_request_counts": [
+        60,
+        60,
+        60
+      ],
+      "beta_count_flagged": false,
+      "beta_p50_ms": {
+        "mean": 111.1,
+        "min": 108.41,
+        "max": 112.63,
+        "std": 2.34
+      },
+      "beta_p95_ms": {
+        "mean": 129.93,
+        "min": 123.06,
+        "max": 136.54,
+        "std": 6.74
+      },
+      "beta_error_rate": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "std": 0.0
+      },
+      "beta_server_p95_ms": {
+        "mean": 121.9,
+        "min": 114.2,
+        "max": 131.2,
+        "std": 8.61
+      },
+      "acme_429": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "std": 0.0
+      },
+      "acme_timeouts": {
+        "mean": 12.0,
+        "min": 12.0,
+        "max": 12.0,
+        "std": 0.0
+      },
+      "acme_errors": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "std": 0.0
+      },
+      "acme_200": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "std": 0.0
+      },
+      "effective_config_sample": {
+        "strategy": "statement_timeout",
+        "timeout_ms": 250
+      },
+      "strategy_label": "Strategy C: Statement Timeout"
+    },
+    {
+      "strategy": "cost_budget",
+      "load_type": "high_volume",
+      "repeats_count": 3,
+      "beta_request_counts": [
+        60,
+        60,
+        60
+      ],
+      "beta_count_flagged": false,
+      "beta_p50_ms": {
+        "mean": 3641.23,
+        "min": 2342.3,
+        "max": 4911.17,
+        "std": 1284.68
+      },
+      "beta_p95_ms": {
+        "mean": 6535.69,
+        "min": 4220.68,
+        "max": 9415.94,
+        "std": 2643.35
+      },
+      "beta_error_rate": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "std": 0.0
+      },
+      "beta_server_p95_ms": {
+        "mean": 6461.05,
+        "min": 4154.8,
+        "max": 9319.74,
+        "std": 2626.41
+      },
+      "acme_429": {
+        "mean": 525.0,
+        "min": 525.0,
+        "max": 525.0,
+        "std": 0.0
+      },
+      "acme_timeouts": {
+        "mean": 0.67,
+        "min": 0.0,
+        "max": 2.0,
+        "std": 1.15
+      },
+      "acme_errors": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "std": 0.0
+      },
+      "acme_200": {
+        "mean": 74.33,
+        "min": 73.0,
+        "max": 75.0,
+        "std": 1.15
+      },
+      "effective_config_sample": {
+        "strategy": "cost_budget",
+        "budget_per_window": 25,
+        "window_seconds": 10
+      },
+      "strategy_label": "Strategy D: Cost-Based Limit"
+    },
+    {
+      "strategy": "cost_budget",
+      "load_type": "expensive",
+      "repeats_count": 3,
+      "beta_request_counts": [
+        60,
+        60,
+        60
+      ],
+      "beta_count_flagged": false,
+      "beta_p50_ms": {
+        "mean": 112.32,
+        "min": 110.08,
+        "max": 113.57,
+        "std": 1.94
+      },
+      "beta_p95_ms": {
+        "mean": 125.97,
+        "min": 125.15,
+        "max": 126.55,
+        "std": 0.73
+      },
+      "beta_error_rate": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "std": 0.0
+      },
+      "beta_server_p95_ms": {
+        "mean": 117.06,
+        "min": 114.96,
+        "max": 120.36,
+        "std": 2.89
+      },
+      "acme_429": {
+        "mean": 6.0,
+        "min": 6.0,
+        "max": 6.0,
+        "std": 0.0
+      },
+      "acme_timeouts": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "std": 0.0
+      },
+      "acme_errors": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "std": 0.0
+      },
+      "acme_200": {
+        "mean": 6.0,
+        "min": 6.0,
+        "max": 6.0,
+        "std": 0.0
+      },
+      "effective_config_sample": {
+        "strategy": "cost_budget",
+        "budget_per_window": 25,
+        "window_seconds": 10
+      },
+      "strategy_label": "Strategy D: Cost-Based Limit"
+    },
+    {
+      "strategy": "combined",
+      "load_type": "high_volume",
+      "repeats_count": 3,
+      "beta_request_counts": [
+        60,
+        60,
+        60
+      ],
+      "beta_count_flagged": false,
+      "beta_p50_ms": {
+        "mean": 131.63,
+        "min": 131.22,
+        "max": 132.39,
+        "std": 0.66
+      },
+      "beta_p95_ms": {
+        "mean": 336.29,
+        "min": 328.99,
+        "max": 348.87,
+        "std": 10.94
+      },
+      "beta_error_rate": {
+        "mean": 0.19,
+        "min": 0.17,
+        "max": 0.25,
+        "std": 0.05
+      },
+      "beta_server_p95_ms": {
+        "mean": 325.21,
+        "min": 317.5,
+        "max": 336.01,
+        "std": 9.63
+      },
+      "acme_429": {
+        "mean": 588.0,
+        "min": 588.0,
+        "max": 588.0,
+        "std": 0.0
+      },
+      "acme_timeouts": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "std": 0.0
+      },
+      "acme_errors": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "std": 0.0
+      },
+      "acme_200": {
+        "mean": 12.0,
+        "min": 12.0,
+        "max": 12.0,
+        "std": 0.0
+      },
+      "effective_config_sample": {
+        "strategy": "combined",
+        "requests_limit": 15,
+        "window_seconds": 10,
+        "max_concurrency": 2,
+        "timeout_ms": 250
+      },
+      "strategy_label": "Strategy E: Combined Multi-Layer"
+    },
+    {
+      "strategy": "combined",
+      "load_type": "expensive",
+      "repeats_count": 3,
+      "beta_request_counts": [
+        60,
+        60,
+        60
+      ],
+      "beta_count_flagged": false,
+      "beta_p50_ms": {
+        "mean": 113.2,
+        "min": 112.9,
+        "max": 113.76,
+        "std": 0.49
+      },
+      "beta_p95_ms": {
+        "mean": 130.83,
+        "min": 129.73,
+        "max": 132.47,
+        "std": 1.45
+      },
+      "beta_error_rate": {
+        "mean": 0.23,
+        "min": 0.22,
+        "max": 0.25,
+        "std": 0.02
+      },
+      "beta_server_p95_ms": {
+        "mean": 120.7,
+        "min": 118.32,
+        "max": 122.14,
+        "std": 2.07
+      },
+      "acme_429": {
+        "mean": 9.0,
+        "min": 9.0,
+        "max": 9.0,
+        "std": 0.0
+      },
+      "acme_timeouts": {
+        "mean": 3.0,
+        "min": 3.0,
+        "max": 3.0,
+        "std": 0.0
+      },
+      "acme_errors": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "std": 0.0
+      },
+      "acme_200": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "std": 0.0
+      },
+      "effective_config_sample": {
+        "strategy": "combined",
+        "requests_limit": 15,
+        "window_seconds": 10,
+        "max_concurrency": 2,
+        "timeout_ms": 250
+      },
+      "strategy_label": "Strategy E: Combined Multi-Layer"
+    }
+  ]
+}

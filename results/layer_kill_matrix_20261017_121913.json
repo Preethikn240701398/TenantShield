@@ -1,0 +1,242 @@
+{
+  "suite": "TenantShield Level 8: Layer-Kill Matrix",
+  "generated_at_utc": "2026-10-17T12:19:13.773189+00:00",
+  "target_lab_database": "tenantshield_lab",
+  "configurations_evaluated": 5,
+  "overall_verdict": "LEAK_DETECTED",
+  "matrix": [
+    {
+      "config_id": "all_controls_on",
+      "configuration": "(a) All Controls ON",
+      "layer_a_app_check": "ON",
+      "layer_b_db_rls": "ON",
+      "layer_c_query_filter": "ON",
+      "leaks": {
+        "read": 0,
+        "write": 0,
+        "update": 0,
+        "delete": 0,
+        "action": 0,
+        "total": 0
+      },
+      "config_verdict": "NO_LEAK_DETECTED",
+      "control_check": {
+        "name": "Control Verification: Legitimate Same-Tenant Requests",
+        "outcome": "PASSED",
+        "details": {
+          "tenant_a_self_read_status": 200,
+          "tenant_a_content_matched": true,
+          "tenant_b_self_read_status": 200,
+          "tenant_b_content_matched": true
+        }
+      },
+      "control_passed": true,
+      "canary_integrity": "INTACT",
+      "active_protections": [
+        "OWNERSHIP_CHECK (Layer A)",
+        "RLS_FILTERED (Layer B)",
+        "QUERY_TENANT_FILTER (Layer C)",
+        "DECRYPT_FAILED (envelope encryption, always active)"
+      ],
+      "db_proof": {
+        "relrowsecurity": true,
+        "relforcerowsecurity": true,
+        "current_user": "postgres",
+        "policies": [
+          {
+            "name": "tenant_isolation_policy",
+            "cmd": "ALL",
+            "roles": "{public}"
+          }
+        ]
+      },
+      "ownership_check_invocations": 11,
+      "layer_note": "all_controls_on: 0 leaks observed across read=0 write=0 update=0 delete=0."
+    },
+    {
+      "config_id": "app_ownership_off",
+      "configuration": "(b) App Ownership OFF",
+      "layer_a_app_check": "OFF",
+      "layer_b_db_rls": "ON",
+      "layer_c_query_filter": "ON",
+      "leaks": {
+        "read": 0,
+        "write": 0,
+        "update": 0,
+        "delete": 0,
+        "action": 0,
+        "total": 0
+      },
+      "config_verdict": "NO_LEAK_DETECTED",
+      "control_check": {
+        "name": "Control Verification: Legitimate Same-Tenant Requests",
+        "outcome": "PASSED",
+        "details": {
+          "tenant_a_self_read_status": 200,
+          "tenant_a_content_matched": true,
+          "tenant_b_self_read_status": 200,
+          "tenant_b_content_matched": true
+        }
+      },
+      "control_passed": true,
+      "canary_integrity": "INTACT",
+      "active_protections": [
+        "RLS_FILTERED (Layer B)",
+        "QUERY_TENANT_FILTER (Layer C)",
+        "DECRYPT_FAILED (envelope encryption, always active)"
+      ],
+      "db_proof": {
+        "relrowsecurity": true,
+        "relforcerowsecurity": true,
+        "current_user": "postgres",
+        "policies": [
+          {
+            "name": "tenant_isolation_policy",
+            "cmd": "ALL",
+            "roles": "{public}"
+          }
+        ]
+      },
+      "ownership_check_invocations": 11,
+      "layer_note": "app_ownership_off: 0 leaks observed across read=0 write=0 update=0 delete=0."
+    },
+    {
+      "config_id": "rls_off",
+      "configuration": "(c) Database RLS OFF",
+      "layer_a_app_check": "ON",
+      "layer_b_db_rls": "OFF",
+      "layer_c_query_filter": "ON",
+      "leaks": {
+        "read": 0,
+        "write": 0,
+        "update": 0,
+        "delete": 0,
+        "action": 0,
+        "total": 0
+      },
+      "config_verdict": "NO_LEAK_DETECTED",
+      "control_check": {
+        "name": "Control Verification: Legitimate Same-Tenant Requests",
+        "outcome": "PASSED",
+        "details": {
+          "tenant_a_self_read_status": 200,
+          "tenant_a_content_matched": true,
+          "tenant_b_self_read_status": 200,
+          "tenant_b_content_matched": true
+        }
+      },
+      "control_passed": true,
+      "canary_integrity": "INTACT",
+      "active_protections": [
+        "OWNERSHIP_CHECK (Layer A)",
+        "QUERY_TENANT_FILTER (Layer C)",
+        "DECRYPT_FAILED (envelope encryption, always active)"
+      ],
+      "db_proof": {
+        "relrowsecurity": false,
+        "relforcerowsecurity": false,
+        "current_user": "postgres",
+        "policies": [
+          {
+            "name": "tenant_isolation_policy",
+            "cmd": "ALL",
+            "roles": "{public}"
+          }
+        ]
+      },
+      "ownership_check_invocations": 11,
+      "layer_note": "rls_off: 0 leaks observed across read=0 write=0 update=0 delete=0."
+    },
+    {
+      "config_id": "both_off",
+      "configuration": "(d) Both A+B OFF",
+      "layer_a_app_check": "OFF",
+      "layer_b_db_rls": "OFF",
+      "layer_c_query_filter": "ON",
+      "leaks": {
+        "read": 0,
+        "write": 0,
+        "update": 0,
+        "delete": 0,
+        "action": 0,
+        "total": 0
+      },
+      "config_verdict": "NO_LEAK_DETECTED",
+      "control_check": {
+        "name": "Control Verification: Legitimate Same-Tenant Requests",
+        "outcome": "PASSED",
+        "details": {
+          "tenant_a_self_read_status": 200,
+          "tenant_a_content_matched": true,
+          "tenant_b_self_read_status": 200,
+          "tenant_b_content_matched": true
+        }
+      },
+      "control_passed": true,
+      "canary_integrity": "INTACT",
+      "active_protections": [
+        "QUERY_TENANT_FILTER (Layer C)",
+        "DECRYPT_FAILED (envelope encryption, always active)"
+      ],
+      "db_proof": {
+        "relrowsecurity": false,
+        "relforcerowsecurity": false,
+        "current_user": "postgres",
+        "policies": [
+          {
+            "name": "tenant_isolation_policy",
+            "cmd": "ALL",
+            "roles": "{public}"
+          }
+        ]
+      },
+      "ownership_check_invocations": 11,
+      "layer_note": "both_off: 0 leaks observed across read=0 write=0 update=0 delete=0."
+    },
+    {
+      "config_id": "all_off",
+      "configuration": "(e) All Controls OFF",
+      "layer_a_app_check": "OFF",
+      "layer_b_db_rls": "OFF",
+      "layer_c_query_filter": "OFF",
+      "leaks": {
+        "read": 0,
+        "write": 0,
+        "update": 1,
+        "delete": 1,
+        "action": 0,
+        "total": 2
+      },
+      "config_verdict": "LEAK_DETECTED",
+      "control_check": {
+        "name": "Control Verification: Legitimate Same-Tenant Requests",
+        "outcome": "PASSED",
+        "details": {
+          "tenant_a_self_read_status": 200,
+          "tenant_a_content_matched": true,
+          "tenant_b_self_read_status": 200,
+          "tenant_b_content_matched": true
+        }
+      },
+      "control_passed": true,
+      "canary_integrity": "COMPROMISED",
+      "active_protections": [
+        "DECRYPT_FAILED (envelope encryption, always active)"
+      ],
+      "db_proof": {
+        "relrowsecurity": false,
+        "relforcerowsecurity": false,
+        "current_user": "postgres",
+        "policies": [
+          {
+            "name": "tenant_isolation_policy",
+            "cmd": "ALL",
+            "roles": "{public}"
+          }
+        ]
+      },
+      "ownership_check_invocations": 15,
+      "layer_note": "all_off: 2 leak(s) observed (read=0 write=0 update=1 delete=1)."
+    }
+  ]
+}

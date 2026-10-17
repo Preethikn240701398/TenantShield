@@ -195,27 +195,34 @@ async def test_04_rate_limit_resets_after_window_expires(client: TestClient, acm
     headers = acme_auth["headers"]
     limiter = RateLimiterService.get_limiter()
     tenant_id = UUID(acme_auth["user"]["tenant_id"])
-    limiter._requests_limit = 1
-    limiter._window_seconds = 1  # 1-second window
-    await limiter.reset_tenant_limit(tenant_id)
+    orig_limit = limiter._requests_limit
+    orig_win = limiter._window_seconds
 
-    resp1 = client.get("/documents", headers=headers)
-    assert resp1.status_code == 200
+    try:
+        limiter._requests_limit = 1
+        limiter._window_seconds = 2
+        await limiter.reset_tenant_limit(tenant_id)
 
-    resp2 = client.get("/documents", headers=headers)
-    assert resp2.status_code == 429
+        resp1 = client.get("/documents", headers=headers)
+        assert resp1.status_code == 200
 
-    # Wait for the 1-second window to roll over
-    await asyncio.sleep(1.2)
+        resp2 = client.get("/documents", headers=headers)
+        assert resp2.status_code == 429
+        # Wait for the window to roll over completely
+        await asyncio.sleep(limiter._window_seconds + 0.5)
 
-    resp3 = client.get("/documents", headers=headers)
-    assert resp3.status_code == 200
-    record_level6_experiment(
-        test_number=4,
-        requirement="Limit resets after window expires",
-        outcome="PASSED",
-        evidence={"window_seconds": 1, "post_expiry_status": resp3.status_code},
-    )
+        resp3 = client.get("/documents", headers=headers)
+        assert resp3.status_code == 200
+        record_level6_experiment(
+            test_number=4,
+            requirement="Limit resets after window expires",
+            outcome="PASSED",
+            evidence={"window_seconds": 2, "post_expiry_status": resp3.status_code},
+        )
+    finally:
+        limiter._requests_limit = orig_limit
+        limiter._window_seconds = orig_win
+        await limiter.reset_tenant_limit(tenant_id)
 
 
 @pytest.mark.asyncio

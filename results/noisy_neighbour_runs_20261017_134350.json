@@ -1,0 +1,917 @@
+{
+  "title": "TenantShield Noisy-Neighbour Experiment Runs (Raw)",
+  "generated_at_utc": "2026-10-17T13:43:50.743044+00:00",
+  "environment": {
+    "cpu_model": "AMD Ryzen 7 7840HS w/ Radeon 780M Graphics",
+    "core_count": 16,
+    "ram_gb": 15.29,
+    "windows_version": "Windows 11 (Build 10.0.26300)",
+    "python_version": "3.13.2",
+    "postgres_version": "PostgreSQL 16.15, compiled by Visual C++ build 1944, 64-bit",
+    "memurai_version": "Memurai 8.2.0 (Redis 8.2.10)",
+    "server_workers": 1
+  },
+  "total_runs": 36,
+  "runs": [
+    {
+      "strategy": "none",
+      "load_type": "high_volume",
+      "repeat": 1,
+      "metrics": {
+        "beta": {
+          "request_count": 20,
+          "expected_count": 20,
+          "flagged": false,
+          "p50_ms": 163.9,
+          "p95_ms": 203.52,
+          "error_count": 0,
+          "error_rate": 0.0
+        },
+        "acme": {
+          "request_count": 37,
+          "count_200": 37,
+          "count_429": 0,
+          "count_timeout": 0,
+          "count_errors": 0
+        }
+      },
+      "raw_records_count": 75,
+      "strategy_label": "Baseline (No Limit)"
+    },
+    {
+      "strategy": "none",
+      "load_type": "high_volume",
+      "repeat": 2,
+      "metrics": {
+        "beta": {
+          "request_count": 20,
+          "expected_count": 20,
+          "flagged": false,
+          "p50_ms": 166.0,
+          "p95_ms": 186.98,
+          "error_count": 0,
+          "error_rate": 0.0
+        },
+        "acme": {
+          "request_count": 38,
+          "count_200": 38,
+          "count_429": 0,
+          "count_timeout": 0,
+          "count_errors": 0
+        }
+      },
+      "raw_records_count": 76,
+      "strategy_label": "Baseline (No Limit)"
+    },
+    {
+      "strategy": "none",
+      "load_type": "high_volume",
+      "repeat": 3,
+      "metrics": {
+        "beta": {
+          "request_count": 20,
+          "expected_count": 20,
+          "flagged": false,
+          "p50_ms": 157.94,
+          "p95_ms": 184.98,
+          "error_count": 0,
+          "error_rate": 0.0
+        },
+        "acme": {
+          "request_count": 38,
+          "count_200": 38,
+          "count_429": 0,
+          "count_timeout": 0,
+          "count_errors": 0
+        }
+      },
+      "raw_records_count": 76,
+      "strategy_label": "Baseline (No Limit)"
+    },
+    {
+      "strategy": "none",
+      "load_type": "expensive",
+      "repeat": 1,
+      "metrics": {
+        "beta": {
+          "request_count": 20,
+          "expected_count": 20,
+          "flagged": false,
+          "p50_ms": 110.93,
+          "p95_ms": 115.04,
+          "error_count": 0,
+          "error_rate": 0.0
+        },
+        "acme": {
+          "request_count": 0,
+          "count_200": 0,
+          "count_429": 0,
+          "count_timeout": 0,
+          "count_errors": 0
+        }
+      },
+      "raw_records_count": 27,
+      "strategy_label": "Baseline (No Limit)"
+    },
+    {
+      "strategy": "none",
+      "load_type": "expensive",
+      "repeat": 2,
+      "metrics": {
+        "beta": {
+          "request_count": 20,
+          "expected_count": 20,
+          "flagged": false,
+          "p50_ms": 104.39,
+          "p95_ms": 113.36,
+          "error_count": 0,
+          "error_rate": 0.0
+        },
+        "acme": {
+          "request_count": 0,
+          "count_200": 0,
+          "count_429": 0,
+          "count_timeout": 0,
+          "count_errors": 0
+        }
+      },
+      "raw_records_count": 27,
+      "strategy_label": "Baseline (No Limit)"
+    },
+    {
+      "strategy": "none",
+      "load_type": "expensive",
+      "repeat": 3,
+      "metrics": {
+        "beta": {
+          "request_count": 20,
+          "expected_count": 20,
+          "flagged": false,
+          "p50_ms": 107.9,
+          "p95_ms": 117.86,
+          "error_count": 0,
+          "error_rate": 0.0
+        },
+        "acme": {
+          "request_count": 0,
+          "count_200": 0,
+          "count_429": 0,
+          "count_timeout": 0,
+          "count_errors": 0
+        }
+      },
+      "raw_records_count": 27,
+      "strategy_label": "Baseline (No Limit)"
+    },
+    {
+      "strategy": "request_count",
+      "load_type": "high_volume",
+      "repeat": 1,
+      "metrics": {
+        "beta": {
+          "request_count": 20,
+          "expected_count": 20,
+          "flagged": false,
+          "p50_ms": 164.8,
+          "p95_ms": 187.58,
+          "error_count": 0,
+          "error_rate": 0.0
+        },
+        "acme": {
+          "request_count": 40,
+          "count_200": 40,
+          "count_429": 0,
+          "count_timeout": 0,
+          "count_errors": 0
+        }
+      },
+      "raw_records_count": 78,
+      "strategy_label": "Strategy A: Request-Count Limit"
+    },
+    {
+      "strategy": "request_count",
+      "load_type": "high_volume",
+      "repeat": 2,
+      "metrics": {
+        "beta": {
+          "request_count": 20,
+          "expected_count": 20,
+          "flagged": false,
+          "p50_ms": 168.71,
+          "p95_ms": 189.3,
+          "error_count": 0,
+          "error_rate": 0.0
+        },
+        "acme": {
+          "request_count": 40,
+          "count_200": 40,
+          "count_429": 0,
+          "count_timeout": 0,
+          "count_errors": 0
+        }
+      },
+      "raw_records_count": 78,
+      "strategy_label": "Strategy A: Request-Count Limit"
+    },
+    {
+      "strategy": "request_count",
+      "load_type": "high_volume",
+      "repeat": 3,
+      "metrics": {
+        "beta": {
+          "request_count": 20,
+          "expected_count": 20,
+          "flagged": false,
+          "p50_ms": 168.31,
+          "p95_ms": 188.12,
+          "error_count": 0,
+          "error_rate": 0.0
+        },
+        "acme": {
+          "request_count": 40,
+          "count_200": 40,
+          "count_429": 0,
+          "count_timeout": 0,
+          "count_errors": 0
+        }
+      },
+      "raw_records_count": 78,
+      "strategy_label": "Strategy A: Request-Count Limit"
+    },
+    {
+      "strategy": "request_count",
+      "load_type": "expensive",
+      "repeat": 1,
+      "metrics": {
+        "beta": {
+          "request_count": 20,
+          "expected_count": 20,
+          "flagged": false,
+          "p50_ms": 110.73,
+          "p95_ms": 115.41,
+          "error_count": 0,
+          "error_rate": 0.0
+        },
+        "acme": {
+          "request_count": 0,
+          "count_200": 0,
+          "count_429": 0,
+          "count_timeout": 0,
+          "count_errors": 0
+        }
+      },
+      "raw_records_count": 27,
+      "strategy_label": "Strategy A: Request-Count Limit"
+    },
+    {
+      "strategy": "request_count",
+      "load_type": "expensive",
+      "repeat": 2,
+      "metrics": {
+        "beta": {
+          "request_count": 20,
+          "expected_count": 20,
+          "flagged": false,
+          "p50_ms": 108.91,
+          "p95_ms": 117.89,
+          "error_count": 0,
+          "error_rate": 0.0
+        },
+        "acme": {
+          "request_count": 0,
+          "count_200": 0,
+          "count_429": 0,
+          "count_timeout": 0,
+          "count_errors": 0
+        }
+      },
+      "raw_records_count": 27,
+      "strategy_label": "Strategy A: Request-Count Limit"
+    },
+    {
+      "strategy": "request_count",
+      "load_type": "expensive",
+      "repeat": 3,
+      "metrics": {
+        "beta": {
+          "request_count": 20,
+          "expected_count": 20,
+          "flagged": false,
+          "p50_ms": 111.06,
+          "p95_ms": 114.71,
+          "error_count": 0,
+          "error_rate": 0.0
+        },
+        "acme": {
+          "request_count": 0,
+          "count_200": 0,
+          "count_429": 0,
+          "count_timeout": 0,
+          "count_errors": 0
+        }
+      },
+      "raw_records_count": 27,
+      "strategy_label": "Strategy A: Request-Count Limit"
+    },
+    {
+      "strategy": "concurrency",
+      "load_type": "high_volume",
+      "repeat": 1,
+      "metrics": {
+        "beta": {
+          "request_count": 20,
+          "expected_count": 20,
+          "flagged": false,
+          "p50_ms": 159.46,
+          "p95_ms": 168.9,
+          "error_count": 0,
+          "error_rate": 0.0
+        },
+        "acme": {
+          "request_count": 41,
+          "count_200": 41,
+          "count_429": 0,
+          "count_timeout": 0,
+          "count_errors": 0
+        }
+      },
+      "raw_records_count": 79,
+      "strategy_label": "Strategy B: Concurrency Limit"
+    },
+    {
+      "strategy": "concurrency",
+      "load_type": "high_volume",
+      "repeat": 2,
+      "metrics": {
+        "beta": {
+          "request_count": 20,
+          "expected_count": 20,
+          "flagged": false,
+          "p50_ms": 159.28,
+          "p95_ms": 183.78,
+          "error_count": 0,
+          "error_rate": 0.0
+        },
+        "acme": {
+          "request_count": 41,
+          "count_200": 41,
+          "count_429": 0,
+          "count_timeout": 0,
+          "count_errors": 0
+        }
+      },
+      "raw_records_count": 79,
+      "strategy_label": "Strategy B: Concurrency Limit"
+    },
+    {
+      "strategy": "concurrency",
+      "load_type": "high_volume",
+      "repeat": 3,
+      "metrics": {
+        "beta": {
+          "request_count": 20,
+          "expected_count": 20,
+          "flagged": false,
+          "p50_ms": 163.65,
+          "p95_ms": 189.1,
+          "error_count": 0,
+          "error_rate": 0.0
+        },
+        "acme": {
+          "request_count": 39,
+          "count_200": 39,
+          "count_429": 0,
+          "count_timeout": 0,
+          "count_errors": 0
+        }
+      },
+      "raw_records_count": 77,
+      "strategy_label": "Strategy B: Concurrency Limit"
+    },
+    {
+      "strategy": "concurrency",
+      "load_type": "expensive",
+      "repeat": 1,
+      "metrics": {
+        "beta": {
+          "request_count": 20,
+          "expected_count": 20,
+          "flagged": false,
+          "p50_ms": 106.7,
+          "p95_ms": 116.19,
+          "error_count": 0,
+          "error_rate": 0.0
+        },
+        "acme": {
+          "request_count": 0,
+          "count_200": 0,
+          "count_429": 0,
+          "count_timeout": 0,
+          "count_errors": 0
+        }
+      },
+      "raw_records_count": 27,
+      "strategy_label": "Strategy B: Concurrency Limit"
+    },
+    {
+      "strategy": "concurrency",
+      "load_type": "expensive",
+      "repeat": 2,
+      "metrics": {
+        "beta": {
+          "request_count": 20,
+          "expected_count": 20,
+          "flagged": false,
+          "p50_ms": 106.92,
+          "p95_ms": 113.09,
+          "error_count": 0,
+          "error_rate": 0.0
+        },
+        "acme": {
+          "request_count": 0,
+          "count_200": 0,
+          "count_429": 0,
+          "count_timeout": 0,
+          "count_errors": 0
+        }
+      },
+      "raw_records_count": 27,
+      "strategy_label": "Strategy B: Concurrency Limit"
+    },
+    {
+      "strategy": "concurrency",
+      "load_type": "expensive",
+      "repeat": 3,
+      "metrics": {
+        "beta": {
+          "request_count": 20,
+          "expected_count": 20,
+          "flagged": false,
+          "p50_ms": 115.91,
+          "p95_ms": 120.95,
+          "error_count": 0,
+          "error_rate": 0.0
+        },
+        "acme": {
+          "request_count": 0,
+          "count_200": 0,
+          "count_429": 0,
+          "count_timeout": 0,
+          "count_errors": 0
+        }
+      },
+      "raw_records_count": 27,
+      "strategy_label": "Strategy B: Concurrency Limit"
+    },
+    {
+      "strategy": "statement_timeout",
+      "load_type": "high_volume",
+      "repeat": 1,
+      "metrics": {
+        "beta": {
+          "request_count": 20,
+          "expected_count": 20,
+          "flagged": false,
+          "p50_ms": 187.97,
+          "p95_ms": 205.93,
+          "error_count": 0,
+          "error_rate": 0.0
+        },
+        "acme": {
+          "request_count": 35,
+          "count_200": 35,
+          "count_429": 0,
+          "count_timeout": 0,
+          "count_errors": 0
+        }
+      },
+      "raw_records_count": 72,
+      "strategy_label": "Strategy C: Statement Timeout"
+    },
+    {
+      "strategy": "statement_timeout",
+      "load_type": "high_volume",
+      "repeat": 2,
+      "metrics": {
+        "beta": {
+          "request_count": 20,
+          "expected_count": 20,
+          "flagged": false,
+          "p50_ms": 181.29,
+          "p95_ms": 211.8,
+          "error_count": 0,
+          "error_rate": 0.0
+        },
+        "acme": {
+          "request_count": 37,
+          "count_200": 37,
+          "count_429": 0,
+          "count_timeout": 0,
+          "count_errors": 0
+        }
+      },
+      "raw_records_count": 75,
+      "strategy_label": "Strategy C: Statement Timeout"
+    },
+    {
+      "strategy": "statement_timeout",
+      "load_type": "high_volume",
+      "repeat": 3,
+      "metrics": {
+        "beta": {
+          "request_count": 20,
+          "expected_count": 20,
+          "flagged": false,
+          "p50_ms": 177.51,
+          "p95_ms": 198.27,
+          "error_count": 0,
+          "error_rate": 0.0
+        },
+        "acme": {
+          "request_count": 38,
+          "count_200": 38,
+          "count_429": 0,
+          "count_timeout": 0,
+          "count_errors": 0
+        }
+      },
+      "raw_records_count": 75,
+      "strategy_label": "Strategy C: Statement Timeout"
+    },
+    {
+      "strategy": "statement_timeout",
+      "load_type": "expensive",
+      "repeat": 1,
+      "metrics": {
+        "beta": {
+          "request_count": 20,
+          "expected_count": 20,
+          "flagged": false,
+          "p50_ms": 110.95,
+          "p95_ms": 118.36,
+          "error_count": 0,
+          "error_rate": 0.0
+        },
+        "acme": {
+          "request_count": 4,
+          "count_200": 0,
+          "count_429": 0,
+          "count_timeout": 4,
+          "count_errors": 0
+        }
+      },
+      "raw_records_count": 32,
+      "strategy_label": "Strategy C: Statement Timeout"
+    },
+    {
+      "strategy": "statement_timeout",
+      "load_type": "expensive",
+      "repeat": 2,
+      "metrics": {
+        "beta": {
+          "request_count": 20,
+          "expected_count": 20,
+          "flagged": false,
+          "p50_ms": 113.31,
+          "p95_ms": 131.26,
+          "error_count": 0,
+          "error_rate": 0.0
+        },
+        "acme": {
+          "request_count": 4,
+          "count_200": 0,
+          "count_429": 0,
+          "count_timeout": 4,
+          "count_errors": 0
+        }
+      },
+      "raw_records_count": 32,
+      "strategy_label": "Strategy C: Statement Timeout"
+    },
+    {
+      "strategy": "statement_timeout",
+      "load_type": "expensive",
+      "repeat": 3,
+      "metrics": {
+        "beta": {
+          "request_count": 20,
+          "expected_count": 20,
+          "flagged": false,
+          "p50_ms": 113.09,
+          "p95_ms": 121.12,
+          "error_count": 0,
+          "error_rate": 0.0
+        },
+        "acme": {
+          "request_count": 4,
+          "count_200": 0,
+          "count_429": 0,
+          "count_timeout": 4,
+          "count_errors": 0
+        }
+      },
+      "raw_records_count": 32,
+      "strategy_label": "Strategy C: Statement Timeout"
+    },
+    {
+      "strategy": "cost_budget",
+      "load_type": "high_volume",
+      "repeat": 1,
+      "metrics": {
+        "beta": {
+          "request_count": 20,
+          "expected_count": 20,
+          "flagged": false,
+          "p50_ms": 160.11,
+          "p95_ms": 178.05,
+          "error_count": 0,
+          "error_rate": 0.0
+        },
+        "acme": {
+          "request_count": 234,
+          "count_200": 25,
+          "count_429": 209,
+          "count_timeout": 0,
+          "count_errors": 0
+        }
+      },
+      "raw_records_count": 272,
+      "strategy_label": "Strategy D: Cost-Based Limit"
+    },
+    {
+      "strategy": "cost_budget",
+      "load_type": "high_volume",
+      "repeat": 2,
+      "metrics": {
+        "beta": {
+          "request_count": 20,
+          "expected_count": 20,
+          "flagged": false,
+          "p50_ms": 162.47,
+          "p95_ms": 195.83,
+          "error_count": 0,
+          "error_rate": 0.0
+        },
+        "acme": {
+          "request_count": 124,
+          "count_200": 35,
+          "count_429": 89,
+          "count_timeout": 0,
+          "count_errors": 0
+        }
+      },
+      "raw_records_count": 162,
+      "strategy_label": "Strategy D: Cost-Based Limit"
+    },
+    {
+      "strategy": "cost_budget",
+      "load_type": "high_volume",
+      "repeat": 3,
+      "metrics": {
+        "beta": {
+          "request_count": 20,
+          "expected_count": 20,
+          "flagged": false,
+          "p50_ms": 159.8,
+          "p95_ms": 208.29,
+          "error_count": 0,
+          "error_rate": 0.0
+        },
+        "acme": {
+          "request_count": 247,
+          "count_200": 26,
+          "count_429": 221,
+          "count_timeout": 0,
+          "count_errors": 0
+        }
+      },
+      "raw_records_count": 286,
+      "strategy_label": "Strategy D: Cost-Based Limit"
+    },
+    {
+      "strategy": "cost_budget",
+      "load_type": "expensive",
+      "repeat": 1,
+      "metrics": {
+        "beta": {
+          "request_count": 20,
+          "expected_count": 20,
+          "flagged": false,
+          "p50_ms": 106.52,
+          "p95_ms": 116.22,
+          "error_count": 0,
+          "error_rate": 0.0
+        },
+        "acme": {
+          "request_count": 0,
+          "count_200": 0,
+          "count_429": 0,
+          "count_timeout": 0,
+          "count_errors": 0
+        }
+      },
+      "raw_records_count": 27,
+      "strategy_label": "Strategy D: Cost-Based Limit"
+    },
+    {
+      "strategy": "cost_budget",
+      "load_type": "expensive",
+      "repeat": 2,
+      "metrics": {
+        "beta": {
+          "request_count": 20,
+          "expected_count": 20,
+          "flagged": false,
+          "p50_ms": 112.41,
+          "p95_ms": 118.57,
+          "error_count": 0,
+          "error_rate": 0.0
+        },
+        "acme": {
+          "request_count": 0,
+          "count_200": 0,
+          "count_429": 0,
+          "count_timeout": 0,
+          "count_errors": 0
+        }
+      },
+      "raw_records_count": 27,
+      "strategy_label": "Strategy D: Cost-Based Limit"
+    },
+    {
+      "strategy": "cost_budget",
+      "load_type": "expensive",
+      "repeat": 3,
+      "metrics": {
+        "beta": {
+          "request_count": 20,
+          "expected_count": 20,
+          "flagged": false,
+          "p50_ms": 112.42,
+          "p95_ms": 116.14,
+          "error_count": 0,
+          "error_rate": 0.0
+        },
+        "acme": {
+          "request_count": 0,
+          "count_200": 0,
+          "count_429": 0,
+          "count_timeout": 0,
+          "count_errors": 0
+        }
+      },
+      "raw_records_count": 27,
+      "strategy_label": "Strategy D: Cost-Based Limit"
+    },
+    {
+      "strategy": "combined",
+      "load_type": "high_volume",
+      "repeat": 1,
+      "metrics": {
+        "beta": {
+          "request_count": 20,
+          "expected_count": 20,
+          "flagged": false,
+          "p50_ms": 166.44,
+          "p95_ms": 200.35,
+          "error_count": 0,
+          "error_rate": 0.0
+        },
+        "acme": {
+          "request_count": 38,
+          "count_200": 38,
+          "count_429": 0,
+          "count_timeout": 0,
+          "count_errors": 0
+        }
+      },
+      "raw_records_count": 76,
+      "strategy_label": "Strategy E: Combined Multi-Layer"
+    },
+    {
+      "strategy": "combined",
+      "load_type": "high_volume",
+      "repeat": 2,
+      "metrics": {
+        "beta": {
+          "request_count": 20,
+          "expected_count": 20,
+          "flagged": false,
+          "p50_ms": 171.24,
+          "p95_ms": 197.41,
+          "error_count": 0,
+          "error_rate": 0.0
+        },
+        "acme": {
+          "request_count": 38,
+          "count_200": 38,
+          "count_429": 0,
+          "count_timeout": 0,
+          "count_errors": 0
+        }
+      },
+      "raw_records_count": 76,
+      "strategy_label": "Strategy E: Combined Multi-Layer"
+    },
+    {
+      "strategy": "combined",
+      "load_type": "high_volume",
+      "repeat": 3,
+      "metrics": {
+        "beta": {
+          "request_count": 20,
+          "expected_count": 20,
+          "flagged": false,
+          "p50_ms": 162.95,
+          "p95_ms": 194.59,
+          "error_count": 0,
+          "error_rate": 0.0
+        },
+        "acme": {
+          "request_count": 39,
+          "count_200": 39,
+          "count_429": 0,
+          "count_timeout": 0,
+          "count_errors": 0
+        }
+      },
+      "raw_records_count": 77,
+      "strategy_label": "Strategy E: Combined Multi-Layer"
+    },
+    {
+      "strategy": "combined",
+      "load_type": "expensive",
+      "repeat": 1,
+      "metrics": {
+        "beta": {
+          "request_count": 20,
+          "expected_count": 20,
+          "flagged": false,
+          "p50_ms": 111.41,
+          "p95_ms": 127.71,
+          "error_count": 0,
+          "error_rate": 0.0
+        },
+        "acme": {
+          "request_count": 4,
+          "count_200": 0,
+          "count_429": 0,
+          "count_timeout": 4,
+          "count_errors": 0
+        }
+      },
+      "raw_records_count": 32,
+      "strategy_label": "Strategy E: Combined Multi-Layer"
+    },
+    {
+      "strategy": "combined",
+      "load_type": "expensive",
+      "repeat": 2,
+      "metrics": {
+        "beta": {
+          "request_count": 20,
+          "expected_count": 20,
+          "flagged": false,
+          "p50_ms": 115.27,
+          "p95_ms": 127.11,
+          "error_count": 0,
+          "error_rate": 0.0
+        },
+        "acme": {
+          "request_count": 4,
+          "count_200": 0,
+          "count_429": 0,
+          "count_timeout": 4,
+          "count_errors": 0
+        }
+      },
+      "raw_records_count": 32,
+      "strategy_label": "Strategy E: Combined Multi-Layer"
+    },
+    {
+      "strategy": "combined",
+      "load_type": "expensive",
+      "repeat": 3,
+      "metrics": {
+        "beta": {
+          "request_count": 20,
+          "expected_count": 20,
+          "flagged": false,
+          "p50_ms": 119.9,
+          "p95_ms": 142.13,
+          "error_count": 0,
+          "error_rate": 0.0
+        },
+        "acme": {
+          "request_count": 4,
+          "count_200": 0,
+          "count_429": 0,
+          "count_timeout": 4,
+          "count_errors": 0
+        }
+      },
+      "raw_records_count": 32,
+      "strategy_label": "Strategy E: Combined Multi-Layer"
+    }
+  ]
+}

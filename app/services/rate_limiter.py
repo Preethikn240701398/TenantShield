@@ -92,7 +92,7 @@ class RedisFixedWindowRateLimiter(RateLimiterInterface):
     def failure_policy(self) -> str:
         return self._failure_policy
 
-    async def check_rate_limit(self, tenant_id: UUID) -> Tuple[bool, int, int]:
+    async def check_rate_limit(self, tenant_id: UUID, cost: int = 1) -> Tuple[bool, int, int]:
         """
         Enforce rate limit for a specific tenant in an atomic window.
 
@@ -110,9 +110,9 @@ class RedisFixedWindowRateLimiter(RateLimiterInterface):
         key = f"tenantshield:rate_limit:{tenant_id}:{int(window_start)}"
         try:
             client = self._get_client()
-            # Atomic pipeline without Lua: INCR + EXPIRE in a single MULTI/EXEC transaction
+            # Atomic pipeline without Lua: INCRBY + EXPIRE in a single MULTI/EXEC transaction
             pipe = client.pipeline(transaction=True)
-            pipe.incr(key)
+            pipe.incrby(key, cost)
             pipe.expire(key, self._window_seconds + 5)
             results = await pipe.execute()
 
@@ -162,7 +162,7 @@ class RateLimiterService:
     """Singleton manager for Redis connection pool and rate limiter instance."""
 
     _redis_client: Optional[aioredis.Redis] = None
-    _limiter_instance: Optional[RedisFixedWindowRateLimiter] = None
+    _limiter_instance: Optional[RateLimiterInterface] = None
 
     @classmethod
     def get_redis_client(cls) -> aioredis.Redis:
@@ -181,11 +181,11 @@ class RateLimiterService:
     def set_redis_client(cls, client: Optional[aioredis.Redis]) -> None:
         """Allows injecting a mock or test client (such as fakeredis)."""
         cls._redis_client = client
-        if cls._limiter_instance is not None:
+        if cls._limiter_instance is not None and hasattr(cls._limiter_instance, "set_client"):
             cls._limiter_instance.set_client(client)
 
     @classmethod
-    def get_limiter(cls) -> RedisFixedWindowRateLimiter:
+    def get_limiter(cls) -> RateLimiterInterface:
         """Returns the default configured rate limiter."""
         if cls._limiter_instance is None:
             cls._limiter_instance = RedisFixedWindowRateLimiter(
@@ -197,9 +197,18 @@ class RateLimiterService:
         return cls._limiter_instance
 
     @classmethod
-    async def check_rate_limit(cls, tenant_id: UUID) -> Tuple[bool, int, int]:
+    def set_limiter(cls, limiter: Optional[RateLimiterInterface]) -> None:
+        """Allows overriding active limiter with a specific strategy."""
+        cls._limiter_instance = limiter
+
+    @classmethod
+    async def check_rate_limit(cls, tenant_id: UUID, cost: int = 1) -> Tuple[bool, int, int]:
         """Convenience delegation to active limiter."""
-        return await cls.get_limiter().check_rate_limit(tenant_id)
+        limiter = cls.get_limiter()
+        try:
+            return await limiter.check_rate_limit(tenant_id, cost=cost)
+        except TypeError:
+            return await limiter.check_rate_limit(tenant_id)
 
     @classmethod
     async def close(cls) -> None:

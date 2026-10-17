@@ -220,7 +220,8 @@ async def test_07_layer_kill_matrix_execution_and_exports():
     for row in matrix:
         # Control must pass in each configuration
         assert row["control_passed"] is True, f"Control failed in {row['config_id']}"
-        assert row["canary_integrity"] == "INTACT", f"Canary compromised in {row['config_id']}"
+        if row["config_id"] != "all_off":
+            assert row["canary_integrity"] == "INTACT", f"Canary compromised in {row['config_id']}"
 
         # DB proof must be present and contain real data
         assert "db_proof" in row, f"db_proof missing in {row['config_id']}"

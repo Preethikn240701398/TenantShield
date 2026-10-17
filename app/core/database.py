@@ -42,10 +42,15 @@ AsyncSessionLocal = async_sessionmaker(
 )
 
 
-def reconfigure_engine(target_url: Optional[str] = None) -> None:
+def reconfigure_engine(
+    target_url: Optional[str] = None,
+    pool_size: Optional[int] = None,
+    max_overflow: Optional[int] = None,
+) -> None:
     """
     Rebinds the database engine and session factory to a specified connection URL,
-    allowing dynamic switching between tenantshield_db and tenantshield_lab.
+    allowing dynamic switching between tenantshield_db and tenantshield_lab,
+    and optional custom pool configuration for mutation experiments.
     """
     global engine, AsyncSessionLocal
     url = target_url or (
@@ -53,7 +58,14 @@ def reconfigure_engine(target_url: Optional[str] = None) -> None:
         if (getattr(settings, "APP_ENV", "") or getattr(settings, "ENVIRONMENT", "")).lower() == "lab"
         else settings.DATABASE_URL
     )
-    engine = create_async_engine(url, **engine_kwargs)
+    current_kwargs = dict(engine_kwargs)
+    if pool_size is not None:
+        current_kwargs["pool_size"] = pool_size
+        current_kwargs.pop("poolclass", None)
+    if max_overflow is not None:
+        current_kwargs["max_overflow"] = max_overflow
+        current_kwargs.pop("poolclass", None)
+    engine = create_async_engine(url, **current_kwargs)
     AsyncSessionLocal.configure(bind=engine)
 
 
@@ -76,9 +88,13 @@ async def set_tenant_context(session: AsyncSession, tenant_id: str | uuid.UUID) 
 
     Uses `is_local = true` so the setting resets when the transaction commits or aborts,
     preventing tenant context leakage in pooled database connections.
+    If MUTATION_SESSION_TENANT_CONTEXT is enabled in lab mode, uses session-level (is_local=false).
     """
+    is_lab = (getattr(settings, "APP_ENV", "") or getattr(settings, "ENVIRONMENT", "")).lower() == "lab"
+    is_local = not (is_lab and getattr(settings, "MUTATION_SESSION_TENANT_CONTEXT", False))
+    is_local_sql = "true" if is_local else "false"
     await session.execute(
-        text("SELECT set_config('app.current_tenant_id', :tenant_id, true)"),
+        text(f"SELECT set_config('app.current_tenant_id', :tenant_id, {is_local_sql})"),
         {"tenant_id": str(tenant_id)},
     )
 

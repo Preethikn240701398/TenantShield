@@ -1,0 +1,664 @@
+{
+  "title": "TenantShield Noisy-Neighbour Experiment Aggregated Summary",
+  "generated_at_utc": "2026-10-17T13:43:50.746852+00:00",
+  "environment": {
+    "cpu_model": "AMD Ryzen 7 7840HS w/ Radeon 780M Graphics",
+    "core_count": 16,
+    "ram_gb": 15.29,
+    "windows_version": "Windows 11 (Build 10.0.26300)",
+    "python_version": "3.13.2",
+    "postgres_version": "PostgreSQL 16.15, compiled by Visual C++ build 1944, 64-bit",
+    "memurai_version": "Memurai 8.2.0 (Redis 8.2.10)",
+    "server_workers": 1
+  },
+  "summaries": [
+    {
+      "strategy": "none",
+      "load_type": "high_volume",
+      "repeats_count": 3,
+      "beta_request_counts": [
+        20,
+        20,
+        20
+      ],
+      "beta_count_flagged": false,
+      "beta_p50_ms": {
+        "mean": 162.61,
+        "min": 157.94,
+        "max": 166.0,
+        "std": 4.18
+      },
+      "beta_p95_ms": {
+        "mean": 191.83,
+        "min": 184.98,
+        "max": 203.52,
+        "std": 10.18
+      },
+      "beta_error_rate": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "std": 0.0
+      },
+      "acme_429": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "std": 0.0
+      },
+      "acme_timeouts": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "std": 0.0
+      },
+      "acme_errors": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "std": 0.0
+      },
+      "acme_200": {
+        "mean": 37.67,
+        "min": 37.0,
+        "max": 38.0,
+        "std": 0.58
+      },
+      "strategy_label": "Baseline (No Limit)"
+    },
+    {
+      "strategy": "none",
+      "load_type": "expensive",
+      "repeats_count": 3,
+      "beta_request_counts": [
+        20,
+        20,
+        20
+      ],
+      "beta_count_flagged": false,
+      "beta_p50_ms": {
+        "mean": 107.74,
+        "min": 104.39,
+        "max": 110.93,
+        "std": 3.27
+      },
+      "beta_p95_ms": {
+        "mean": 115.42,
+        "min": 113.36,
+        "max": 117.86,
+        "std": 2.27
+      },
+      "beta_error_rate": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "std": 0.0
+      },
+      "acme_429": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "std": 0.0
+      },
+      "acme_timeouts": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "std": 0.0
+      },
+      "acme_errors": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "std": 0.0
+      },
+      "acme_200": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "std": 0.0
+      },
+      "strategy_label": "Baseline (No Limit)"
+    },
+    {
+      "strategy": "request_count",
+      "load_type": "high_volume",
+      "repeats_count": 3,
+      "beta_request_counts": [
+        20,
+        20,
+        20
+      ],
+      "beta_count_flagged": false,
+      "beta_p50_ms": {
+        "mean": 167.27,
+        "min": 164.8,
+        "max": 168.71,
+        "std": 2.15
+      },
+      "beta_p95_ms": {
+        "mean": 188.33,
+        "min": 187.58,
+        "max": 189.3,
+        "std": 0.88
+      },
+      "beta_error_rate": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "std": 0.0
+      },
+      "acme_429": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "std": 0.0
+      },
+      "acme_timeouts": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "std": 0.0
+      },
+      "acme_errors": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "std": 0.0
+      },
+      "acme_200": {
+        "mean": 40.0,
+        "min": 40.0,
+        "max": 40.0,
+        "std": 0.0
+      },
+      "strategy_label": "Strategy A: Request-Count Limit"
+    },
+    {
+      "strategy": "request_count",
+      "load_type": "expensive",
+      "repeats_count": 3,
+      "beta_request_counts": [
+        20,
+        20,
+        20
+      ],
+      "beta_count_flagged": false,
+      "beta_p50_ms": {
+        "mean": 110.23,
+        "min": 108.91,
+        "max": 111.06,
+        "std": 1.16
+      },
+      "beta_p95_ms": {
+        "mean": 116.0,
+        "min": 114.71,
+        "max": 117.89,
+        "std": 1.67
+      },
+      "beta_error_rate": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "std": 0.0
+      },
+      "acme_429": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "std": 0.0
+      },
+      "acme_timeouts": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "std": 0.0
+      },
+      "acme_errors": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "std": 0.0
+      },
+      "acme_200": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "std": 0.0
+      },
+      "strategy_label": "Strategy A: Request-Count Limit"
+    },
+    {
+      "strategy": "concurrency",
+      "load_type": "high_volume",
+      "repeats_count": 3,
+      "beta_request_counts": [
+        20,
+        20,
+        20
+      ],
+      "beta_count_flagged": false,
+      "beta_p50_ms": {
+        "mean": 160.8,
+        "min": 159.28,
+        "max": 163.65,
+        "std": 2.47
+      },
+      "beta_p95_ms": {
+        "mean": 180.59,
+        "min": 168.9,
+        "max": 189.1,
+        "std": 10.47
+      },
+      "beta_error_rate": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "std": 0.0
+      },
+      "acme_429": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "std": 0.0
+      },
+      "acme_timeouts": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "std": 0.0
+      },
+      "acme_errors": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "std": 0.0
+      },
+      "acme_200": {
+        "mean": 40.33,
+        "min": 39.0,
+        "max": 41.0,
+        "std": 1.15
+      },
+      "strategy_label": "Strategy B: Concurrency Limit"
+    },
+    {
+      "strategy": "concurrency",
+      "load_type": "expensive",
+      "repeats_count": 3,
+      "beta_request_counts": [
+        20,
+        20,
+        20
+      ],
+      "beta_count_flagged": false,
+      "beta_p50_ms": {
+        "mean": 109.84,
+        "min": 106.7,
+        "max": 115.91,
+        "std": 5.26
+      },
+      "beta_p95_ms": {
+        "mean": 116.74,
+        "min": 113.09,
+        "max": 120.95,
+        "std": 3.96
+      },
+      "beta_error_rate": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "std": 0.0
+      },
+      "acme_429": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "std": 0.0
+      },
+      "acme_timeouts": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "std": 0.0
+      },
+      "acme_errors": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "std": 0.0
+      },
+      "acme_200": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "std": 0.0
+      },
+      "strategy_label": "Strategy B: Concurrency Limit"
+    },
+    {
+      "strategy": "statement_timeout",
+      "load_type": "high_volume",
+      "repeats_count": 3,
+      "beta_request_counts": [
+        20,
+        20,
+        20
+      ],
+      "beta_count_flagged": false,
+      "beta_p50_ms": {
+        "mean": 182.26,
+        "min": 177.51,
+        "max": 187.97,
+        "std": 5.3
+      },
+      "beta_p95_ms": {
+        "mean": 205.33,
+        "min": 198.27,
+        "max": 211.8,
+        "std": 6.78
+      },
+      "beta_error_rate": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "std": 0.0
+      },
+      "acme_429": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "std": 0.0
+      },
+      "acme_timeouts": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "std": 0.0
+      },
+      "acme_errors": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "std": 0.0
+      },
+      "acme_200": {
+        "mean": 36.67,
+        "min": 35.0,
+        "max": 38.0,
+        "std": 1.53
+      },
+      "strategy_label": "Strategy C: Statement Timeout"
+    },
+    {
+      "strategy": "statement_timeout",
+      "load_type": "expensive",
+      "repeats_count": 3,
+      "beta_request_counts": [
+        20,
+        20,
+        20
+      ],
+      "beta_count_flagged": false,
+      "beta_p50_ms": {
+        "mean": 112.45,
+        "min": 110.95,
+        "max": 113.31,
+        "std": 1.3
+      },
+      "beta_p95_ms": {
+        "mean": 123.58,
+        "min": 118.36,
+        "max": 131.26,
+        "std": 6.79
+      },
+      "beta_error_rate": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "std": 0.0
+      },
+      "acme_429": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "std": 0.0
+      },
+      "acme_timeouts": {
+        "mean": 4.0,
+        "min": 4.0,
+        "max": 4.0,
+        "std": 0.0
+      },
+      "acme_errors": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "std": 0.0
+      },
+      "acme_200": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "std": 0.0
+      },
+      "strategy_label": "Strategy C: Statement Timeout"
+    },
+    {
+      "strategy": "cost_budget",
+      "load_type": "high_volume",
+      "repeats_count": 3,
+      "beta_request_counts": [
+        20,
+        20,
+        20
+      ],
+      "beta_count_flagged": false,
+      "beta_p50_ms": {
+        "mean": 160.79,
+        "min": 159.8,
+        "max": 162.47,
+        "std": 1.46
+      },
+      "beta_p95_ms": {
+        "mean": 194.06,
+        "min": 178.05,
+        "max": 208.29,
+        "std": 15.2
+      },
+      "beta_error_rate": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "std": 0.0
+      },
+      "acme_429": {
+        "mean": 173.0,
+        "min": 89.0,
+        "max": 221.0,
+        "std": 72.99
+      },
+      "acme_timeouts": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "std": 0.0
+      },
+      "acme_errors": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "std": 0.0
+      },
+      "acme_200": {
+        "mean": 28.67,
+        "min": 25.0,
+        "max": 35.0,
+        "std": 5.51
+      },
+      "strategy_label": "Strategy D: Cost-Based Limit"
+    },
+    {
+      "strategy": "cost_budget",
+      "load_type": "expensive",
+      "repeats_count": 3,
+      "beta_request_counts": [
+        20,
+        20,
+        20
+      ],
+      "beta_count_flagged": false,
+      "beta_p50_ms": {
+        "mean": 110.45,
+        "min": 106.52,
+        "max": 112.42,
+        "std": 3.4
+      },
+      "beta_p95_ms": {
+        "mean": 116.98,
+        "min": 116.14,
+        "max": 118.57,
+        "std": 1.38
+      },
+      "beta_error_rate": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "std": 0.0
+      },
+      "acme_429": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "std": 0.0
+      },
+      "acme_timeouts": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "std": 0.0
+      },
+      "acme_errors": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "std": 0.0
+      },
+      "acme_200": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "std": 0.0
+      },
+      "strategy_label": "Strategy D: Cost-Based Limit"
+    },
+    {
+      "strategy": "combined",
+      "load_type": "high_volume",
+      "repeats_count": 3,
+      "beta_request_counts": [
+        20,
+        20,
+        20
+      ],
+      "beta_count_flagged": false,
+      "beta_p50_ms": {
+        "mean": 166.88,
+        "min": 162.95,
+        "max": 171.24,
+        "std": 4.16
+      },
+      "beta_p95_ms": {
+        "mean": 197.45,
+        "min": 194.59,
+        "max": 200.35,
+        "std": 2.88
+      },
+      "beta_error_rate": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "std": 0.0
+      },
+      "acme_429": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "std": 0.0
+      },
+      "acme_timeouts": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "std": 0.0
+      },
+      "acme_errors": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "std": 0.0
+      },
+      "acme_200": {
+        "mean": 38.33,
+        "min": 38.0,
+        "max": 39.0,
+        "std": 0.58
+      },
+      "strategy_label": "Strategy E: Combined Multi-Layer"
+    },
+    {
+      "strategy": "combined",
+      "load_type": "expensive",
+      "repeats_count": 3,
+      "beta_request_counts": [
+        20,
+        20,
+        20
+      ],
+      "beta_count_flagged": false,
+      "beta_p50_ms": {
+        "mean": 115.53,
+        "min": 111.41,
+        "max": 119.9,
+        "std": 4.25
+      },
+      "beta_p95_ms": {
+        "mean": 132.32,
+        "min": 127.11,
+        "max": 142.13,
+        "std": 8.5
+      },
+      "beta_error_rate": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "std": 0.0
+      },
+      "acme_429": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "std": 0.0
+      },
+      "acme_timeouts": {
+        "mean": 4.0,
+        "min": 4.0,
+        "max": 4.0,
+        "std": 0.0
+      },
+      "acme_errors": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "std": 0.0
+      },
+      "acme_200": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "std": 0.0
+      },
+      "strategy_label": "Strategy E: Combined Multi-Layer"
+    }
+  ]
+}

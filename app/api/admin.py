@@ -185,3 +185,50 @@ async def get_system_metrics(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(exc),
         ) from exc
+
+
+@router.post(
+    "/limiter/strategy",
+    status_code=status.HTTP_200_OK,
+    summary="Configure Limiter Strategy",
+    description="Switches the active limiter strategy on the running server.",
+)
+async def set_limiter_strategy(
+    payload: Dict[str, Any],
+    current_user: AuthenticatedUser = Depends(get_current_user),
+):
+    if current_user.role != "platform_admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Forbidden: Platform administrator privileges required.",
+        )
+    strategy_name = payload.get("strategy", "request_count")
+    from app.limiter.service import LimiterService
+    LimiterService.set_strategy(strategy_name)
+    await LimiterService.reset_all_limits()
+    return {
+        "status": "success",
+        "active_strategy": LimiterService.get_strategy().strategy_name,
+        "statement_timeout_ms": LimiterService.get_active_statement_timeout_ms(),
+        "effective_config": LimiterService.get_effective_config(),
+    }
+
+
+@router.post(
+    "/limiter/reset",
+    status_code=status.HTTP_200_OK,
+    summary="Reset Limiter State",
+    description="Flushes all limiter and concurrency keys in Redis.",
+)
+async def reset_limiter_state(
+    current_user: AuthenticatedUser = Depends(get_current_user),
+):
+    if current_user.role != "platform_admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Forbidden: Platform administrator privileges required.",
+        )
+    from app.limiter.service import LimiterService
+    await LimiterService.reset_all_limits()
+    return {"status": "success", "message": "All limiter keys cleared."}
+

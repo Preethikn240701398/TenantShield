@@ -114,15 +114,22 @@ async def check_tenant_rate_limit(
     if current_user.role == "platform_admin":
         return current_user
 
+    cost = 10 if (request and "heavy-report" in getattr(request.url, "path", "")) else 1
     try:
         allowed, remaining, retry_after = await RateLimiterService.check_rate_limit(
-            current_user.tenant_id
+            current_user.tenant_id,
+            cost=cost,
         )
-    except RateLimiterUnavailableError:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Service unavailable: Rate limiting service unreachable.",
-        )
+    except (RateLimiterUnavailableError, Exception) as exc:
+        if isinstance(exc, HTTPException):
+            raise
+        from app.limiter.base import LimiterUnavailableError
+        if isinstance(exc, (RateLimiterUnavailableError, LimiterUnavailableError)):
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Service unavailable: Rate limiting service unreachable.",
+            )
+        raise
 
     if not allowed:
         raise HTTPException(
@@ -130,6 +137,10 @@ async def check_tenant_rate_limit(
             detail="Rate limit exceeded. Too many requests.",
             headers={"Retry-After": str(retry_after)},
         )
+
+    if request is not None:
+        request.state.concurrency_slot_held = True
+        request.state.concurrency_tenant_id = current_user.tenant_id
 
     return current_user
 
@@ -147,6 +158,7 @@ async def get_tenant_db(
     - Completely ignores any client-supplied tenant ID (headers, query params, body).
     - Automatically rolls back on error and commits on clean completion.
     - Transaction-local scope guarantees zero context leakage across connection pools.
+    - Enforces per-tenant DB statement_timeout when active.
     """
     async with AsyncSessionLocal() as session:
         async with session.begin():
@@ -159,8 +171,28 @@ async def get_tenant_db(
             if is_rls_enabled:
                 await set_tenant_context(session, current_user.tenant_id)
 
+            from app.limiter.service import LimiterService
+            timeout_ms = LimiterService.get_active_statement_timeout_ms()
+            if timeout_ms > 0:
+                await session.execute(text(f"SET LOCAL statement_timeout = '{timeout_ms}ms'"))
+
             try:
                 yield session
-            except Exception:
+            except Exception as exc:
                 await session.rollback()
+                if "statement timeout" in str(exc).lower():
+                    # Record timeout error specifically for this tenant
+                    try:
+                        from app.services.metrics import MetricsService
+                        await MetricsService.record_request(
+                            tenant_id=current_user.tenant_id,
+                            status_code=504,
+                            duration_ms=float(timeout_ms),
+                        )
+                    except Exception:
+                        pass
+                    raise HTTPException(
+                        status_code=status.HTTP_504_GATEWAY_TIMEOUT,
+                        detail="Database statement timeout exceeded.",
+                    ) from exc
                 raise

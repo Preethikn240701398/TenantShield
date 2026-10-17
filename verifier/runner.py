@@ -403,11 +403,13 @@ class VerificationRunner:
             "create_injection_proof": create_injection_proof,
         }
 
-    async def run_verification(self) -> Dict[str, Any]:
+    async def run_verification(self, attack_context=None) -> Dict[str, Any]:
         """
         Executes full verification workflow and returns structured results dictionary.
+        Optionally accepts an attack_context context manager factory to apply mutations
+        specifically during attack execution (after initial canary provisioning).
         """
-        transport = httpx.ASGITransport(app=app)
+        transport = httpx.ASGITransport(app=app, raise_app_exceptions=False)
         async with httpx.AsyncClient(transport=transport, base_url=self.base_url) as client:
             # 1. Setup step
             await self.setup_tenants_and_canaries(client)
@@ -424,15 +426,22 @@ class VerificationRunner:
 
             # 4. Execute all generated attacks
             attack_results = []
-            for attack in attacks:
-                result = await self.execute_attack(client, attack)
-                attack_results.append(result)
+            ctx = attack_context() if attack_context else None
+            if ctx:
+                ctx.__enter__()
+            try:
+                for attack in attacks:
+                    result = await self.execute_attack(client, attack)
+                    attack_results.append(result)
 
-            # 5. List-leak check
-            list_leak_result = await self.run_list_leak_check(client)
+                # 5. List-leak check
+                list_leak_result = await self.run_list_leak_check(client)
 
-            # 6. Final integrity check of Tenant B canary
-            final_integrity = await self.verify_tenant_b_integrity(client)
+                # 6. Final integrity check of Tenant B canary
+                final_integrity = await self.verify_tenant_b_integrity(client)
+            finally:
+                if ctx:
+                    ctx.__exit__(None, None, None)
 
             # 7. Delete documents created by attacks
             await self._cleanup_attack_documents(client)

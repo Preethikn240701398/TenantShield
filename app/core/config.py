@@ -40,6 +40,10 @@ class Settings(BaseSettings):
         default=True,
         description="Layer C: Application-level WHERE tenant_id=? query filter (lab-only switch)",
     )
+    MUTATION_SESSION_TENANT_CONTEXT: bool = Field(
+        default=False,
+        description="Lab Mutation 5: Sets app.current_tenant_id at session level (is_local=false)",
+    )
 
     # Database Configuration (PostgreSQL 16)
     # Uses the restricted application role (tenantshield_app)
@@ -68,6 +72,36 @@ class Settings(BaseSettings):
     METRICS_RETENTION_SECONDS: int = Field(
         default=86400,
         description="Retention TTL for time-bucketed metrics in seconds (default 24h)",
+    )
+
+    # Limiter Strategies (Noisy-Neighbour Defense)
+    LIMITER_STRATEGY: str = Field(
+        default="request_count",
+        description="Active limiter strategy: none, request_count, concurrency, statement_timeout, cost_budget, combined",
+    )
+    LIMITER_REQUESTS_LIMIT: int = Field(
+        default=15,
+        description="Max allowed requests per tenant per time window for Strategy A",
+    )
+    LIMITER_WINDOW_SECONDS: int = Field(
+        default=10,
+        description="Window duration in seconds for Strategy A",
+    )
+    LIMITER_CONCURRENCY_LIMIT: int = Field(
+        default=2,
+        description="Max concurrent in-flight requests per tenant (Strategy B)",
+    )
+    LIMITER_STATEMENT_TIMEOUT_MS: int = Field(
+        default=250,
+        description="Per-tenant DB statement timeout in ms (Strategy C)",
+    )
+    LIMITER_COST_BUDGET: int = Field(
+        default=25,
+        description="Cost budget per window for cost limiter (Strategy D)",
+    )
+    LIMITER_COST_WINDOW_SECONDS: int = Field(
+        default=10,
+        description="Window duration in seconds for cost budget limiter (Strategy D)",
     )
 
 
@@ -120,6 +154,11 @@ class Settings(BaseSettings):
             if not self.ENABLE_QUERY_TENANT_FILTER:
                 raise ValueError(
                     f"Security Policy Violation: ENABLE_QUERY_TENANT_FILTER can only be disabled "
+                    f"when APP_ENV='lab' (current APP_ENV='{self.APP_ENV}')."
+                )
+            if self.MUTATION_SESSION_TENANT_CONTEXT:
+                raise ValueError(
+                    f"Security Policy Violation: MUTATION_SESSION_TENANT_CONTEXT can only be enabled "
                     f"when APP_ENV='lab' (current APP_ENV='{self.APP_ENV}')."
                 )
 
