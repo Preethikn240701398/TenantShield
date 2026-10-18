@@ -1,0 +1,162 @@
+{
+  "level": 5,
+  "title": "TenantShield Level 5 - Envelope Encryption & Crypto-Shredding Verification",
+  "generated_at_utc": "2026-10-18T13:47:35.291737+00:00",
+  "total_experiments_recorded": 14,
+  "all_passed": true,
+  "experiments": [
+    {
+      "test_number": 1,
+      "requirement": "Encryption/decryption round trip returns original content",
+      "timestamp_utc": "2026-10-18T13:47:28.552502+00:00",
+      "outcome": "PASSED",
+      "evidence": {
+        "document_id": "4b7a648c-f8da-4282-bb3b-0d783a418a4c",
+        "status_code": 200,
+        "content_matched": true
+      }
+    },
+    {
+      "test_number": 2,
+      "requirement": "Stored document contains ciphertext rather than plaintext",
+      "timestamp_utc": "2026-10-18T13:47:28.808508+00:00",
+      "outcome": "PASSED",
+      "evidence": {
+        "document_id": "80725cfb-51ef-47e6-9c28-41233cd0af83",
+        "content_is_null": true,
+        "nonce_length_bytes": 12,
+        "ciphertext_present": true,
+        "total_plaintext_in_db": 0
+      }
+    },
+    {
+      "test_number": 3,
+      "requirement": "Tampered ciphertext causes authentication failure",
+      "timestamp_utc": "2026-10-18T13:47:29.367823+00:00",
+      "outcome": "PASSED",
+      "evidence": {
+        "document_id": "d88a6a7d-73f5-4de8-b54f-27174d8a7ac8",
+        "api_response_status": 404,
+        "no_plaintext_returned": true
+      }
+    },
+    {
+      "test_number": 4,
+      "requirement": "Tampered nonce causes authentication failure",
+      "timestamp_utc": "2026-10-18T13:47:29.922629+00:00",
+      "outcome": "PASSED",
+      "evidence": {
+        "document_id": "90fca5aa-e1ba-4ab0-b604-dc7817a86349",
+        "api_response_status": 404
+      }
+    },
+    {
+      "test_number": 5,
+      "requirement": "Copying ciphertext to different tenant ID fails decryption",
+      "timestamp_utc": "2026-10-18T13:47:31.037545+00:00",
+      "outcome": "PASSED",
+      "evidence": {
+        "acme_doc_id": "e66f80c2-2a67-4b48-97e3-44104b1ad969",
+        "beta_doc_id": "7d9d3562-4d4c-4537-bfce-e9ede19f5e75",
+        "beta_response_status": 404
+      }
+    },
+    {
+      "test_number": 6,
+      "requirement": "Copying ciphertext to different document ID fails decryption",
+      "timestamp_utc": "2026-10-18T13:47:31.699479+00:00",
+      "outcome": "PASSED",
+      "evidence": {
+        "doc_a_id": "350c46d2-cc0a-4c19-8c37-da8d8051df23",
+        "doc_b_id": "f9134145-03ed-4574-af3b-d0ca5655f995",
+        "status_code": 404
+      }
+    },
+    {
+      "test_number": 7,
+      "requirement": "Tenant A cannot read Tenant B's DEK or decrypt Tenant B's documents",
+      "timestamp_utc": "2026-10-18T13:47:31.759242+00:00",
+      "outcome": "PASSED",
+      "evidence": {
+        "cross_tenant_keys_visible": 0,
+        "wrong_dek_raises_auth_error": true
+      }
+    },
+    {
+      "test_number": 8,
+      "requirement": "New writes use active key version after rotation",
+      "timestamp_utc": "2026-10-18T13:47:32.727864+00:00",
+      "outcome": "PASSED",
+      "evidence": {
+        "new_key_version": 89,
+        "document_key_version": 89
+      }
+    },
+    {
+      "test_number": 9,
+      "requirement": "Existing documents under retired key version remain decryptable",
+      "timestamp_utc": "2026-10-18T13:47:33.368896+00:00",
+      "outcome": "PASSED",
+      "evidence": {
+        "document_id": "a6302cda-56ba-4c78-a761-e5b31fb68064",
+        "read_status": 200,
+        "decryption_successful": true
+      }
+    },
+    {
+      "test_number": 10,
+      "requirement": "Destroying DEK prevents decryption of dependent documents",
+      "timestamp_utc": "2026-10-18T13:47:34.244632+00:00",
+      "outcome": "PASSED",
+      "evidence": {
+        "document_id": "61233fb6-e1f8-47fd-95c8-ffea48d6b9e2",
+        "shredded_version": 90,
+        "key_status": "destroyed",
+        "wrapped_dek_is_null": true,
+        "read_status": 404
+      }
+    },
+    {
+      "test_number": 11,
+      "requirement": "Destroying Tenant A key leaves Tenant B unaffected",
+      "timestamp_utc": "2026-10-18T13:47:34.582889+00:00",
+      "outcome": "PASSED",
+      "evidence": {
+        "beta_doc_id": "eee568eb-8e31-4908-9e1c-c28b425e2b10",
+        "read_status": 200
+      }
+    },
+    {
+      "test_number": 12,
+      "requirement": "Missing or invalid master-key configuration fails safely",
+      "timestamp_utc": "2026-10-18T13:47:34.610962+00:00",
+      "outcome": "PASSED",
+      "evidence": {
+        "empty_key_rejected": true,
+        "short_key_rejected": true,
+        "non_hex_rejected": true
+      }
+    },
+    {
+      "test_number": 13,
+      "requirement": "Existing Level 0-4 regression suite passes",
+      "timestamp_utc": "2026-10-18T13:47:35.098335+00:00",
+      "outcome": "PASSED",
+      "evidence": {
+        "health_status": "healthy",
+        "anon_status": 401,
+        "cross_tenant_denied": 404
+      }
+    },
+    {
+      "test_number": 14,
+      "requirement": "No test or error response leaks plaintext, keys, or cryptographic internals",
+      "timestamp_utc": "2026-10-18T13:47:35.288370+00:00",
+      "outcome": "PASSED",
+      "evidence": {
+        "master_key_leaked": false,
+        "crypto_internals_leaked": false
+      }
+    }
+  ]
+}

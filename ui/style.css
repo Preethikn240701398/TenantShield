@@ -460,7 +460,7 @@ tbody tr:hover {
   right: 0;
   bottom: 0;
   background: rgba(0, 0, 0, 0.4);
-  display: flex;
+  display: none;
   align-items: center;
   justify-content: center;
   z-index: 100;
@@ -503,6 +503,164 @@ tbody tr:hover {
   color: var(--accent);
 }
 
+/* Info (i) buttons and glossary popovers */
+.info-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  padding: 0;
+  margin-left: 5px;
+  border-radius: 50%;
+  border: 1px solid var(--border-subtle);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 10px;
+  font-family: inherit;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  vertical-align: middle;
+  transition: all 0.15s ease;
+}
+
+.info-btn:hover,
+.info-btn:focus-visible {
+  color: var(--accent);
+  border-color: var(--accent);
+  outline: none;
+  background: rgba(37, 99, 235, 0.08);
+}
+
+.info-btn.active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+.glossary-popover {
+  display: block;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  margin-top: 6px;
+  margin-bottom: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text-main);
+  text-align: left;
+  max-width: 440px;
+  z-index: 50;
+  position: relative;
+}
+
+.glossary-popover-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+  border-bottom: 1px solid var(--border-subtle);
+  padding-bottom: 4px;
+}
+
+.glossary-popover-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.glossary-popover-close {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 0 4px;
+  line-height: 1;
+}
+
+.glossary-popover-close:hover {
+  color: var(--text-main);
+}
+
+.glossary-popover-label {
+  font-weight: 600;
+  color: var(--text-muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin-top: 6px;
+  margin-bottom: 2px;
+}
+
+.glossary-popover-text {
+  margin: 0 0 6px 0;
+  font-size: 12px;
+}
+
+/* How this section works toggle & panel */
+.how-it-works-toggle {
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.how-it-works-toggle:hover {
+  color: var(--text-main);
+  border-color: var(--text-muted);
+}
+
+.how-it-works-panel {
+  display: none;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius);
+  padding: 12px 16px;
+  margin-bottom: 14px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.how-it-works-line {
+  margin: 4px 0;
+}
+
+.how-it-works-label {
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-right: 6px;
+}
+
+/* Glossary Section Cards */
+.glossary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+}
+
+.glossary-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius);
+  padding: 16px;
+}
+
+.glossary-card-title {
+  font-size: 14px;
+  font-weight: 600;
+  margin-top: 0;
+  margin-bottom: 8px;
+  color: var(--text-main);
+}
+
 /* Responsive adjustments */
 @media (max-width: 900px) {
   .app-container {
@@ -522,3 +680,4 @@ tbody tr:hover {
     padding: 16px;
   }
 }
+

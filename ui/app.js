@@ -2,20 +2,23 @@
  * TenantShield Client Application Logic
  * =====================================
  * Security Principles:
- * 1. In-memory authentication token only (never persisted to localStorage/sessionStorage).
+ * 1. Authentication token stored in sessionStorage only (never persisted to localStorage).
  * 2. Strict DOM manipulation using textContent and createElement (zero innerHTML).
  * 3. Tenant ID is never supplied by the client on creation/updates; derived server-side.
- * 4. Automatic session termination on HTTP 401.
+ * 4. Automatic session termination on HTTP 401, sign out, or token expiry.
  * 5. Button disabling during network operations.
  */
 
 (function () {
   'use strict';
 
-  // --- In-Memory State ---
+  // --- Session & In-Memory State ---
   var authToken = null;
   var currentUser = null;
   var pendingDeleteDocId = null;
+
+  var STORAGE_TOKEN_KEY = 'tenantshield_token';
+  var STORAGE_PAGE_KEY = 'tenantshield_page';
 
   // --- DOM Elements ---
   var appHeader = document.getElementById('app-header');
@@ -71,6 +74,50 @@
   var btnConfirmCancel = document.getElementById('btn-confirm-cancel');
   var btnConfirmAction = document.getElementById('btn-confirm-action');
 
+  function hideConfirmModal() {
+    pendingDeleteDocId = null;
+    if (confirmModal) {
+      confirmModal.style.display = 'none';
+    }
+  }
+
+  // Ensure modal is strictly hidden on script load
+  hideConfirmModal();
+
+  // --- JWT Payload Decoding & Expiry Check ---
+  function parseJwtPayload(token) {
+    try {
+      if (!token || typeof token !== 'string') return null;
+      var parts = token.split('.');
+      if (parts.length < 2) return null;
+      var base64Url = parts[1];
+      var base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      while (base64.length % 4) {
+        base64 += '=';
+      }
+      var jsonPayload = decodeURIComponent(
+        atob(base64)
+          .split('')
+          .map(function (c) {
+            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+          })
+          .join('')
+      );
+      return JSON.parse(jsonPayload);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function isTokenExpired(token) {
+    var payload = parseJwtPayload(token);
+    if (!payload || !payload.exp) {
+      return true;
+    }
+    var nowSec = Math.floor(Date.now() / 1000);
+    return payload.exp <= nowSec;
+  }
+
   // --- Network Helper ---
   async function apiFetch(url, options) {
     options = options || {};
@@ -96,18 +143,47 @@
     return response;
   }
 
-  // --- Authentication Handlers ---
-  function handleSignOut() {
+  // --- Authentication & Session Handlers ---
+  function clearAuthSession() {
     authToken = null;
     currentUser = null;
     pendingDeleteDocId = null;
+
+    try {
+      sessionStorage.removeItem(STORAGE_TOKEN_KEY);
+      sessionStorage.removeItem(STORAGE_PAGE_KEY);
+      sessionStorage.removeItem('token');
+      sessionStorage.removeItem('access_token');
+      sessionStorage.removeItem('current_page');
+    } catch (e) {}
+
+    try {
+      // Defensive: Ensure token is never in localStorage
+      localStorage.removeItem(STORAGE_TOKEN_KEY);
+      localStorage.removeItem('token');
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('current_page');
+    } catch (e) {}
+
+    // Clear URL hash
+    if (window.location.hash) {
+      try {
+        history.replaceState(null, '', window.location.pathname);
+      } catch (e) {
+        window.location.hash = '';
+      }
+    }
+  }
+
+  function handleSignOut() {
+    clearAuthSession();
 
     // Clear forms safely
     loginForm.reset();
     docForm.reset();
 
     // Always hide the delete-confirmation modal before returning to login
-    confirmModal.style.display = 'none';
+    hideConfirmModal();
 
     // Reset views
     headerMeta.style.display = 'none';
@@ -119,13 +195,15 @@
 
   // Hide any lingering modal on BFCache restore (browser back/forward or hard reload)
   window.addEventListener('pageshow', function () {
-    if (!authToken) {
+    hideConfirmModal();
+    var stored = null;
+    try {
+      stored = sessionStorage.getItem(STORAGE_TOKEN_KEY) || sessionStorage.getItem('token');
+    } catch (e) {}
+    if (!stored || isTokenExpired(stored)) {
       handleSignOut();
     }
   });
-
-  // Explicitly reset UI to initial signed-out state on script load
-  handleSignOut();
 
   function showLoginError(msg) {
     loginError.textContent = msg;
@@ -168,6 +246,11 @@
       var tokenData = await res.json();
       authToken = tokenData.access_token;
 
+      try {
+        sessionStorage.setItem(STORAGE_TOKEN_KEY, authToken);
+        sessionStorage.setItem('token', authToken);
+      } catch (err) {}
+
       // Fetch user profile context
       var userRes = await apiFetch('/admin/dashboard/me');
       if (!userRes.ok) {
@@ -177,6 +260,13 @@
 
       currentUser = await userRes.json();
       renderAppShell();
+
+      // Role-based landing: tenant users to the workspace, platform_admin to the dashboard
+      if (currentUser.role === 'platform_admin') {
+        navigate('#admin/verification');
+      } else {
+        navigate('#documents');
+      }
     } catch (err) {
       showLoginError(err.message || 'An error occurred during sign in.');
     } finally {
@@ -189,6 +279,7 @@
 
   // --- Shell Rendering ---
   function renderAppShell() {
+    hideConfirmModal();
     loginView.style.display = 'none';
     appShell.style.display = 'flex';
 
@@ -210,8 +301,6 @@
       adminDashboard.style.display = 'none';
       tenantWorkspace.style.display = 'block';
       renderTenantSidebar();
-      showDocsList();
-      loadTenantDocuments();
     }
   }
 
@@ -246,24 +335,187 @@
   }
 
   // =========================================================================
+  // ROUTING & NAVIGATION
+  // =========================================================================
+  function navigate(hash) {
+    if (window.location.hash === hash) {
+      handleRoute();
+    } else {
+      window.location.hash = hash;
+    }
+  }
+
+  window.addEventListener('hashchange', function () {
+    handleRoute();
+  });
+
+  async function handleRoute() {
+    hideConfirmModal();
+    if (!authToken || !currentUser) {
+      return;
+    }
+
+    var hash = window.location.hash || '';
+    if (!hash || hash === '#') {
+      try {
+        var stored = sessionStorage.getItem(STORAGE_PAGE_KEY);
+        if (stored) {
+          hash = stored;
+        }
+      } catch (e) {}
+    }
+
+    // Role-based landing default if still empty
+    if (!hash || hash === '#') {
+      if (currentUser.role === 'platform_admin') {
+        hash = '#admin/verification';
+      } else {
+        hash = '#documents';
+      }
+    }
+
+    // Strip trailing slash
+    hash = hash.replace(/\/$/, '');
+
+    // Role-based security guard: A tenant user must NEVER see admin pages even if they type the hash.
+    if (currentUser.role !== 'platform_admin') {
+      if (hash.indexOf('#admin') === 0) {
+        navigate('#documents');
+        return;
+      }
+    }
+
+    // Platform admin guard: admin users must land on the admin dashboard
+    if (currentUser.role === 'platform_admin') {
+      if (hash.indexOf('#admin') !== 0) {
+        navigate('#admin/verification');
+        return;
+      }
+    }
+
+    // Save current page to sessionStorage
+    try {
+      sessionStorage.setItem(STORAGE_PAGE_KEY, hash);
+    } catch (e) {}
+
+    // Synchronize URL hash if different
+    if (window.location.hash !== hash) {
+      window.location.hash = hash;
+      return;
+    }
+
+    // --- Admin Dashboard Dispatch ---
+    if (currentUser.role === 'platform_admin') {
+      tenantWorkspace.style.display = 'none';
+      adminDashboard.style.display = 'block';
+
+      var slug = hash.replace(/^#admin\/?/, '').replace(/^#/, '');
+      var validSlugs = ['verification', 'layer-kill', 'mutation', 'noisy-neighbour', 'metrics', 'keys', 'glossary'];
+      if (validSlugs.indexOf(slug) === -1) {
+        slug = 'verification';
+      }
+
+      var targetSecId = 'section-' + slug;
+      var adminLinks = sidebarNav.querySelectorAll('.nav-link');
+      for (var i = 0; i < adminLinks.length; i++) {
+        if (adminLinks[i].getAttribute('data-section') === targetSecId) {
+          adminLinks[i].classList.add('active');
+        } else {
+          adminLinks[i].classList.remove('active');
+        }
+      }
+
+      var targetEl = document.getElementById(targetSecId);
+      if (targetEl) {
+        setTimeout(function () {
+          targetEl.scrollIntoView({ behavior: 'smooth' });
+        }, 50);
+      }
+      return;
+    }
+
+    // --- Tenant Workspace Dispatch ---
+    adminDashboard.style.display = 'none';
+    tenantWorkspace.style.display = 'block';
+
+    if (hash === '#documents') {
+      setActiveTenantNav('#documents');
+      showDocsList();
+      loadTenantDocuments();
+      return;
+    }
+
+    if (hash === '#new' || hash === '#documents/new' || hash === '#document/new') {
+      setActiveTenantNav('#new');
+      showCreateDocForm();
+      return;
+    }
+
+    var editMatch = hash.match(/^#(?:doc|document)\/([^/]+)\/edit$/);
+    if (editMatch) {
+      setActiveTenantNav(null);
+      loadAndShowDoc(editMatch[1], true);
+      return;
+    }
+
+    var viewMatch = hash.match(/^#(?:doc|document)\/([^/]+)$/);
+    if (viewMatch) {
+      setActiveTenantNav(null);
+      loadAndShowDoc(viewMatch[1], false);
+      return;
+    }
+
+    // Fallback for unrecognized tenant hashes
+    navigate('#documents');
+  }
+
+  function setActiveTenantNav(route) {
+    var links = sidebarNav.querySelectorAll('.nav-link');
+    for (var i = 0; i < links.length; i++) {
+      if (route && links[i].getAttribute('data-route') === route) {
+        links[i].classList.add('active');
+      } else {
+        links[i].classList.remove('active');
+      }
+    }
+  }
+
+  async function loadAndShowDoc(docId, isEdit) {
+    try {
+      var res = await apiFetch('/documents/' + docId);
+      if (!res.ok) {
+        navigate('#documents');
+        return;
+      }
+      var doc = await res.json();
+      if (isEdit) {
+        showEditDocForm(doc);
+      } else {
+        showViewDoc(doc);
+      }
+    } catch (e) {
+      navigate('#documents');
+    }
+  }
+
+  // =========================================================================
   // TENANT WORKSPACE CONTROLLER
   // =========================================================================
   function renderTenantSidebar() {
     var docsBtn = document.createElement('button');
     docsBtn.className = 'nav-link active';
     docsBtn.textContent = 'Documents';
+    docsBtn.setAttribute('data-route', '#documents');
     docsBtn.addEventListener('click', function () {
-      setActiveNavLink(docsBtn);
-      showDocsList();
-      loadTenantDocuments();
+      navigate('#documents');
     });
 
     var newDocBtn = document.createElement('button');
     newDocBtn.className = 'nav-link';
     newDocBtn.textContent = 'New document';
+    newDocBtn.setAttribute('data-route', '#new');
     newDocBtn.addEventListener('click', function () {
-      setActiveNavLink(newDocBtn);
-      showCreateDocForm();
+      navigate('#new');
     });
 
     sidebarNav.appendChild(docsBtn);
@@ -275,7 +527,9 @@
     for (var i = 0; i < links.length; i++) {
       links[i].classList.remove('active');
     }
-    activeEl.classList.add('active');
+    if (activeEl) {
+      activeEl.classList.add('active');
+    }
   }
 
   function showDocsList() {
@@ -324,13 +578,19 @@
     viewDocContent.textContent = doc.content || '';
 
     btnEditCurrentDoc.onclick = function () {
-      showEditDocForm(doc);
+      navigate('#doc/' + doc.id + '/edit');
     };
   }
 
-  btnNewDoc.addEventListener('click', showCreateDocForm);
-  btnCancelDocForm.addEventListener('click', showDocsList);
-  btnBackToDocs.addEventListener('click', showDocsList);
+  btnNewDoc.addEventListener('click', function () {
+    navigate('#new');
+  });
+  btnCancelDocForm.addEventListener('click', function () {
+    navigate('#documents');
+  });
+  btnBackToDocs.addEventListener('click', function () {
+    navigate('#documents');
+  });
 
   async function loadTenantDocuments() {
     tenantDocsAlert.style.display = 'none';
@@ -394,17 +654,8 @@
           viewBtn.className = 'btn btn-sm';
           viewBtn.textContent = 'View';
           viewBtn.style.marginRight = '4px';
-          viewBtn.addEventListener('click', async function () {
-            viewBtn.disabled = true;
-            try {
-              var singleRes = await apiFetch('/documents/' + doc.id);
-              if (singleRes.ok) {
-                var singleDoc = await singleRes.json();
-                showViewDoc(singleDoc);
-              }
-            } finally {
-              viewBtn.disabled = false;
-            }
+          viewBtn.addEventListener('click', function () {
+            navigate('#doc/' + doc.id);
           });
 
           var editBtn = document.createElement('button');
@@ -412,17 +663,8 @@
           editBtn.className = 'btn btn-sm';
           editBtn.textContent = 'Edit';
           editBtn.style.marginRight = '4px';
-          editBtn.addEventListener('click', async function () {
-            editBtn.disabled = true;
-            try {
-              var singleRes = await apiFetch('/documents/' + doc.id);
-              if (singleRes.ok) {
-                var singleDoc = await singleRes.json();
-                showEditDocForm(singleDoc);
-              }
-            } finally {
-              editBtn.disabled = false;
-            }
+          editBtn.addEventListener('click', function () {
+            navigate('#doc/' + doc.id + '/edit');
           });
 
           var delBtn = document.createElement('button');
@@ -487,8 +729,7 @@
         throw new Error(errData.detail || 'Failed to save document.');
       }
 
-      showDocsList();
-      loadTenantDocuments();
+      navigate('#documents');
     } catch (err) {
       docFormError.textContent = err.message || 'Error saving document.';
       docFormError.style.display = 'block';
@@ -506,9 +747,18 @@
     confirmModal.style.display = 'flex';
   }
 
-  btnConfirmCancel.addEventListener('click', function () {
-    pendingDeleteDocId = null;
-    confirmModal.style.display = 'none';
+  btnConfirmCancel.addEventListener('click', hideConfirmModal);
+
+  confirmModal.addEventListener('click', function (e) {
+    if (e.target === confirmModal) {
+      hideConfirmModal();
+    }
+  });
+
+  window.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' || e.key === 'Esc') {
+      hideConfirmModal();
+    }
   });
 
   btnConfirmAction.addEventListener('click', async function () {
@@ -538,16 +788,251 @@
   });
 
   // =========================================================================
-  // ADMIN DASHBOARD CONTROLLER
+  // ADMIN DASHBOARD CONTROLLER & GLOSSARY
   // =========================================================================
+  var currentOpenPopover = null;
+  var currentOpenPopoverBtn = null;
+
+  function closeCurrentPopover() {
+    if (currentOpenPopover && currentOpenPopover.parentNode) {
+      currentOpenPopover.parentNode.removeChild(currentOpenPopover);
+    }
+    if (currentOpenPopoverBtn) {
+      currentOpenPopoverBtn.classList.remove('active');
+    }
+    currentOpenPopover = null;
+    currentOpenPopoverBtn = null;
+  }
+
+  window.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' || e.key === 'Esc') {
+      closeCurrentPopover();
+    }
+  });
+
+  document.addEventListener('click', function (e) {
+    if (currentOpenPopover && !currentOpenPopover.contains(e.target) && e.target !== currentOpenPopoverBtn) {
+      closeCurrentPopover();
+    }
+  });
+
+  function createInfoButton(termKey) {
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'info-btn';
+    btn.setAttribute('aria-label', 'Explain ' + termKey);
+    btn.setAttribute('data-glossary', termKey);
+    btn.textContent = 'i';
+
+    btn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      if (currentOpenPopoverBtn === btn) {
+        closeCurrentPopover();
+        return;
+      }
+      closeCurrentPopover();
+
+      var term = window.getGlossaryTerm ? window.getGlossaryTerm(termKey) : null;
+      if (!term && window.GLOSSARY && window.GLOSSARY[termKey]) {
+        term = window.GLOSSARY[termKey];
+      }
+      if (!term) return;
+
+      var popover = document.createElement('div');
+      popover.className = 'glossary-popover';
+
+      var header = document.createElement('div');
+      header.className = 'glossary-popover-header';
+
+      var title = document.createElement('span');
+      title.className = 'glossary-popover-title';
+      title.textContent = term.name;
+      header.appendChild(title);
+
+      var closeBtn = document.createElement('button');
+      closeBtn.type = 'button';
+      closeBtn.className = 'glossary-popover-close';
+      closeBtn.setAttribute('aria-label', 'Close explanation');
+      closeBtn.textContent = '×';
+      closeBtn.addEventListener('click', function (ev) {
+        ev.stopPropagation();
+        closeCurrentPopover();
+      });
+      header.appendChild(closeBtn);
+      popover.appendChild(header);
+
+      var lblMeaning = document.createElement('div');
+      lblMeaning.className = 'glossary-popover-label';
+      lblMeaning.textContent = 'Meaning';
+      popover.appendChild(lblMeaning);
+
+      var pMeaning = document.createElement('p');
+      pMeaning.className = 'glossary-popover-text';
+      pMeaning.textContent = term.meaning;
+      popover.appendChild(pMeaning);
+
+      var lblCalc = document.createElement('div');
+      lblCalc.className = 'glossary-popover-label';
+      lblCalc.textContent = 'Calculation / Source';
+      popover.appendChild(lblCalc);
+
+      var pCalc = document.createElement('p');
+      pCalc.className = 'glossary-popover-text';
+      pCalc.textContent = term.calculation;
+      popover.appendChild(pCalc);
+
+      var lblRead = document.createElement('div');
+      lblRead.className = 'glossary-popover-label';
+      lblRead.textContent = 'How to Read';
+      popover.appendChild(lblRead);
+
+      var pRead = document.createElement('p');
+      pRead.className = 'glossary-popover-text';
+      pRead.textContent = term.howToRead;
+      popover.appendChild(pRead);
+
+      var parent = btn.parentElement || btn;
+      if (parent.tagName === 'TH' || parent.tagName === 'TD') {
+        parent.style.position = 'relative';
+        var rect = btn.getBoundingClientRect();
+        if (window.innerWidth - rect.right < 280) {
+          popover.style.right = '0';
+          popover.style.left = 'auto';
+        } else {
+          popover.style.left = '0';
+          popover.style.right = 'auto';
+        }
+        parent.appendChild(popover);
+      } else {
+        parent.appendChild(popover);
+      }
+
+      btn.classList.add('active');
+      currentOpenPopover = popover;
+      currentOpenPopoverBtn = btn;
+    });
+
+    return btn;
+  }
+
+  function setupStaticGlossaryButtons() {
+    var targets = document.querySelectorAll('[data-glossary]');
+    for (var i = 0; i < targets.length; i++) {
+      var el = targets[i];
+      if (!el.querySelector('.info-btn')) {
+        var termKey = el.getAttribute('data-glossary');
+        var btn = createInfoButton(termKey);
+        el.appendChild(btn);
+      }
+    }
+  }
+
+  function setupHowItWorksToggles() {
+    var toggles = document.querySelectorAll('.how-it-works-toggle');
+    for (var i = 0; i < toggles.length; i++) {
+      (function (btn) {
+        if (btn.getAttribute('data-bound')) return;
+        btn.setAttribute('data-bound', 'true');
+        btn.addEventListener('click', function () {
+          var targetId = btn.getAttribute('data-target');
+          var panel = document.getElementById(targetId);
+          if (!panel) return;
+          if (panel.style.display === 'block') {
+            panel.style.display = 'none';
+            btn.classList.remove('active');
+          } else {
+            panel.style.display = 'block';
+            btn.classList.add('active');
+          }
+        });
+      })(toggles[i]);
+    }
+  }
+
+  function loadGlossarySection() {
+    var container = document.getElementById('glossary-items-container');
+    var searchInput = document.getElementById('glossary-search-input');
+    if (!container || !window.GLOSSARY) return;
+
+    function renderTerms(filterText) {
+      while (container.firstChild) {
+        container.removeChild(container.firstChild);
+      }
+      var filter = (filterText || '').toLowerCase().trim();
+      var keys = Object.keys(window.GLOSSARY);
+
+      for (var i = 0; i < keys.length; i++) {
+        var key = keys[i];
+        var item = window.GLOSSARY[key];
+        if (filter) {
+          var matched = item.name.toLowerCase().indexOf(filter) !== -1 ||
+                        item.meaning.toLowerCase().indexOf(filter) !== -1 ||
+                        item.calculation.toLowerCase().indexOf(filter) !== -1 ||
+                        item.howToRead.toLowerCase().indexOf(filter) !== -1;
+          if (!matched) continue;
+        }
+
+        var card = document.createElement('div');
+        card.className = 'glossary-card';
+
+        var title = document.createElement('h3');
+        title.className = 'glossary-card-title';
+        title.textContent = item.name;
+        card.appendChild(title);
+
+        var lblM = document.createElement('div');
+        lblM.className = 'glossary-popover-label';
+        lblM.textContent = 'Meaning';
+        card.appendChild(lblM);
+
+        var pM = document.createElement('p');
+        pM.className = 'glossary-popover-text';
+        pM.textContent = item.meaning;
+        card.appendChild(pM);
+
+        var lblC = document.createElement('div');
+        lblC.className = 'glossary-popover-label';
+        lblC.textContent = 'Calculation / Source';
+        card.appendChild(lblC);
+
+        var pC = document.createElement('p');
+        pC.className = 'glossary-popover-text';
+        pC.textContent = item.calculation;
+        card.appendChild(pC);
+
+        var lblR = document.createElement('div');
+        lblR.className = 'glossary-popover-label';
+        lblR.textContent = 'How to Read';
+        card.appendChild(lblR);
+
+        var pR = document.createElement('p');
+        pR.className = 'glossary-popover-text';
+        pR.textContent = item.howToRead;
+        card.appendChild(pR);
+
+        container.appendChild(card);
+      }
+    }
+
+    renderTerms('');
+
+    if (searchInput && !searchInput.getAttribute('data-bound')) {
+      searchInput.setAttribute('data-bound', 'true');
+      searchInput.addEventListener('input', function () {
+        renderTerms(searchInput.value);
+      });
+    }
+  }
+
   function renderAdminSidebar() {
     var sections = [
-      { id: 'section-verification', label: 'Latest verification' },
-      { id: 'section-layer-kill', label: 'Layer-kill matrix' },
-      { id: 'section-mutation', label: 'Mutation testing' },
-      { id: 'section-noisy-neighbour', label: 'Noisy neighbour' },
-      { id: 'section-metrics', label: 'Tenant metrics' },
-      { id: 'section-keys', label: 'Tenant keys' }
+      { id: 'section-verification', slug: 'verification', label: 'Latest verification' },
+      { id: 'section-layer-kill', slug: 'layer-kill', label: 'Layer-kill matrix' },
+      { id: 'section-mutation', slug: 'mutation', label: 'Mutation testing' },
+      { id: 'section-noisy-neighbour', slug: 'noisy-neighbour', label: 'Noisy neighbour' },
+      { id: 'section-metrics', slug: 'metrics', label: 'Tenant metrics' },
+      { id: 'section-keys', slug: 'keys', label: 'Tenant keys' },
+      { id: 'section-glossary', slug: 'glossary', label: 'Glossary' }
     ];
 
     for (var i = 0; i < sections.length; i++) {
@@ -555,25 +1040,98 @@
         var btn = document.createElement('button');
         btn.className = 'nav-link' + (idx === 0 ? ' active' : '');
         btn.textContent = sec.label;
+        btn.setAttribute('data-section', sec.id);
         btn.addEventListener('click', function () {
-          setActiveNavLink(btn);
-          var targetEl = document.getElementById(sec.id);
-          if (targetEl) {
-            targetEl.scrollIntoView({ behavior: 'smooth' });
-          }
+          navigate('#admin/' + sec.slug);
         });
         sidebarNav.appendChild(btn);
       })(sections[i], i);
     }
   }
 
+  function setupVerificationRunButton() {
+    var btnRunVerification = document.getElementById('btn-run-verification');
+    var verifStatusBar = document.getElementById('verif-run-status-bar');
+    if (!btnRunVerification || btnRunVerification.getAttribute('data-bound')) return;
+    btnRunVerification.setAttribute('data-bound', 'true');
+
+    btnRunVerification.addEventListener('click', async function () {
+      btnRunVerification.disabled = true;
+      var elapsedSec = 0;
+      btnRunVerification.textContent = 'Running (0s)...';
+      if (verifStatusBar) {
+        verifStatusBar.style.display = 'block';
+        verifStatusBar.textContent = 'Starting verification run...';
+      }
+
+      var timer = setInterval(function () {
+        elapsedSec++;
+        btnRunVerification.textContent = 'Running (' + elapsedSec + 's)...';
+      }, 1000);
+
+      try {
+        var startRes = await apiFetch('/admin/dashboard/run-verification', {
+          method: 'POST'
+        });
+        if (!startRes.ok) {
+          var errData = await startRes.json();
+          throw new Error(errData.detail || 'Failed to start verification.');
+        }
+
+        var startData = await startRes.json();
+        var runId = startData.run_id;
+
+        var pollInterval = setInterval(async function () {
+          try {
+            var stRes = await apiFetch('/admin/dashboard/run-status/' + runId);
+            if (!stRes.ok) return;
+            var stData = await stRes.json();
+
+            if (stData.state === 'finished') {
+              clearInterval(pollInterval);
+              clearInterval(timer);
+              btnRunVerification.disabled = false;
+              btnRunVerification.textContent = 'Run verification now';
+              if (verifStatusBar) {
+                verifStatusBar.textContent = 'Verification run completed in ' + elapsedSec + 's.';
+              }
+              await loadVerificationSection();
+            } else if (stData.state === 'failed') {
+              clearInterval(pollInterval);
+              clearInterval(timer);
+              btnRunVerification.disabled = false;
+              btnRunVerification.textContent = 'Run verification now';
+              if (verifStatusBar) {
+                verifStatusBar.textContent = 'Verification run failed after ' + elapsedSec + 's: ' + (stData.error || 'Process failed');
+              }
+            }
+          } catch (pollErr) {
+            // Keep polling
+          }
+        }, 1500);
+
+      } catch (err) {
+        clearInterval(timer);
+        btnRunVerification.disabled = false;
+        btnRunVerification.textContent = 'Run verification now';
+        if (verifStatusBar) {
+          verifStatusBar.textContent = 'Error: ' + err.message;
+        }
+      }
+    });
+  }
+
   function loadAllAdminSections() {
+    setupVerificationRunButton();
     loadVerificationSection();
     loadLayerKillSection();
     loadMutationSection();
     loadNoisyNeighbourSection();
     loadMetricsSection();
     loadKeysSection();
+    loadGlossarySection();
+    setupHowItWorksToggles();
+    setupStaticGlossaryButtons();
   }
 
   // 1. Verification Section
@@ -601,13 +1159,22 @@
       var verdictEl = document.getElementById('verif-verdict');
       while (verdictEl.firstChild) verdictEl.removeChild(verdictEl.firstChild);
       verdictEl.appendChild(createStatusBadge(data.summary.overall_verdict, getDotTypeForStatus(data.summary.overall_verdict)));
+      verdictEl.appendChild(createInfoButton('Verdict'));
 
       document.getElementById('verif-total').textContent = data.summary.total_attacks_run;
       document.getElementById('verif-blocked').textContent = data.summary.blocked_attacks;
       document.getElementById('verif-leaked').textContent = data.summary.leaked_attacks;
       document.getElementById('verif-inconclusive').textContent = data.summary.inconclusive_attacks;
-      document.getElementById('verif-canary').textContent = data.summary.tenant_b_canary_integrity;
-      document.getElementById('verif-list-leak').textContent = data.summary.list_leak_check;
+
+      var canaryEl = document.getElementById('verif-canary');
+      while (canaryEl.firstChild) canaryEl.removeChild(canaryEl.firstChild);
+      canaryEl.textContent = data.summary.tenant_b_canary_integrity + ' ';
+      canaryEl.appendChild(createInfoButton(data.summary.tenant_b_canary_integrity));
+
+      var listLeakEl = document.getElementById('verif-list-leak');
+      while (listLeakEl.firstChild) listLeakEl.removeChild(listLeakEl.firstChild);
+      listLeakEl.textContent = data.summary.list_leak_check + ' ';
+      listLeakEl.appendChild(createInfoButton('List-leak check'));
 
       // Attacks Table
       while (tbody.firstChild) tbody.removeChild(tbody.firstChild);
@@ -618,7 +1185,8 @@
 
         var tdMethod = document.createElement('td');
         tdMethod.style.fontWeight = '600';
-        tdMethod.textContent = a.method;
+        tdMethod.textContent = a.method + ' ';
+        tdMethod.appendChild(createInfoButton(a.method));
         tr.appendChild(tdMethod);
 
         var tdPath = document.createElement('td');
@@ -629,15 +1197,18 @@
 
         var tdStatus = document.createElement('td');
         tdStatus.className = 'num';
-        tdStatus.textContent = a.status_code;
+        tdStatus.textContent = a.status_code + ' ';
+        tdStatus.appendChild(createInfoButton(String(a.status_code)));
         tr.appendChild(tdStatus);
 
         var tdOutcome = document.createElement('td');
         tdOutcome.appendChild(createStatusBadge(a.outcome, getDotTypeForStatus(a.outcome)));
+        tdOutcome.appendChild(createInfoButton(a.outcome));
         tr.appendChild(tdOutcome);
 
         var tdControl = document.createElement('td');
-        tdControl.textContent = a.blocking_control;
+        tdControl.textContent = a.blocking_control + ' ';
+        tdControl.appendChild(createInfoButton(a.blocking_control));
         tr.appendChild(tdControl);
 
         tbody.appendChild(tr);
@@ -672,6 +1243,7 @@
       var verdictEl = document.getElementById('layer-verdict');
       while (verdictEl.firstChild) verdictEl.removeChild(verdictEl.firstChild);
       verdictEl.appendChild(createStatusBadge(data.overall_verdict, getDotTypeForStatus(data.overall_verdict)));
+      verdictEl.appendChild(createInfoButton('Verdict'));
 
       while (tbody.firstChild) tbody.removeChild(tbody.firstChild);
       var configs = data.configurations || [];
@@ -681,19 +1253,25 @@
 
         var tdConfig = document.createElement('td');
         tdConfig.style.fontWeight = '500';
-        tdConfig.textContent = c.configuration;
+        tdConfig.textContent = c.configuration + ' ';
+        var cfgMatch = c.configuration.match(/\(([a-e])\)/i);
+        var cfgKey = cfgMatch ? 'Configuration (' + cfgMatch[1].toLowerCase() + ')' : 'Configuration (a) to (e)';
+        tdConfig.appendChild(createInfoButton(cfgKey));
         tr.appendChild(tdConfig);
 
         var tdA = document.createElement('td');
-        tdA.textContent = c.layer_a_app_check;
+        tdA.textContent = c.layer_a_app_check + ' ';
+        tdA.appendChild(createInfoButton('Layer A'));
         tr.appendChild(tdA);
 
         var tdB = document.createElement('td');
-        tdB.textContent = c.layer_b_db_rls;
+        tdB.textContent = c.layer_b_db_rls + ' ';
+        tdB.appendChild(createInfoButton('Layer B'));
         tr.appendChild(tdB);
 
         var tdC = document.createElement('td');
-        tdC.textContent = c.layer_c_query_filter;
+        tdC.textContent = c.layer_c_query_filter + ' ';
+        tdC.appendChild(createInfoButton('Layer C'));
         tr.appendChild(tdC);
 
         var tdR = document.createElement('td');
@@ -719,11 +1297,13 @@
         var tdProt = document.createElement('td');
         tdProt.style.fontSize = '12px';
         tdProt.style.color = 'var(--text-muted)';
-        tdProt.textContent = (c.active_protections || []).join(', ');
+        tdProt.textContent = (c.active_protections || []).join(', ') + ' ';
+        tdProt.appendChild(createInfoButton('Active protections'));
         tr.appendChild(tdProt);
 
         var tdVerd = document.createElement('td');
         tdVerd.appendChild(createStatusBadge(c.config_verdict, getDotTypeForStatus(c.config_verdict)));
+        tdVerd.appendChild(createInfoButton('Verdict'));
         tr.appendChild(tdVerd);
 
         tbody.appendChild(tr);
@@ -756,6 +1336,9 @@
       contentEl.style.display = 'block';
       timeEl.textContent = data.timestamp ? new Date(data.timestamp).toLocaleString() : '';
       scoreEl.textContent = data.isolation_mutation_score;
+      if (!scoreEl.parentElement.querySelector('.info-btn')) {
+        scoreEl.parentElement.appendChild(createInfoButton('Mutation'));
+      }
 
       while (tbody.firstChild) tbody.removeChild(tbody.firstChild);
       var mutations = data.mutations || [];
@@ -765,29 +1348,35 @@
 
         var tdName = document.createElement('td');
         tdName.style.fontWeight = '500';
-        tdName.textContent = m.name;
+        tdName.textContent = m.name + ' ';
+        tdName.appendChild(createInfoButton('Mutation'));
         tr.appendChild(tdName);
 
         var tdLayer = document.createElement('td');
-        tdLayer.textContent = m.mutated_layer;
+        tdLayer.textContent = m.mutated_layer + ' ';
+        tdLayer.appendChild(createInfoButton('Layer A, B, C'));
         tr.appendChild(tdLayer);
 
         var tdMethod = document.createElement('td');
         var codeM = document.createElement('code');
         codeM.textContent = m.detection_method;
         tdMethod.appendChild(codeM);
+        tdMethod.appendChild(createInfoButton(m.detection_method));
         tr.appendChild(tdMethod);
 
         var tdIso = document.createElement('td');
         tdIso.appendChild(createStatusBadge(m.isolated_result, getDotTypeForStatus(m.isolated_result)));
+        tdIso.appendChild(createInfoButton(m.isolated_result));
         tr.appendChild(tdIso);
 
         var tdMask = document.createElement('td');
         tdMask.appendChild(createStatusBadge(m.masked_result, getDotTypeForStatus(m.masked_result)));
+        tdMask.appendChild(createInfoButton(m.masked_result));
         tr.appendChild(tdMask);
 
         var tdBase = document.createElement('td');
-        tdBase.textContent = m.baseline_restored ? 'Yes' : 'No';
+        tdBase.textContent = (m.baseline_restored ? 'Yes' : 'No') + ' ';
+        tdBase.appendChild(createInfoButton('Baseline restored'));
         tr.appendChild(tdBase);
 
         tbody.appendChild(tr);
@@ -828,36 +1417,44 @@
 
         var tdStrat = document.createElement('td');
         tdStrat.style.fontWeight = '500';
-        tdStrat.textContent = s.strategy_label;
+        tdStrat.textContent = s.strategy_label + ' ';
+        tdStrat.appendChild(createInfoButton(s.strategy || 'each limiter strategy'));
         tr.appendChild(tdStrat);
 
         var tdLoad = document.createElement('td');
-        tdLoad.textContent = s.load_type;
+        tdLoad.textContent = s.load_type + ' ';
+        tdLoad.appendChild(createInfoButton(s.load_type || 'each load type'));
         tr.appendChild(tdLoad);
 
         var tdP50 = document.createElement('td');
         tdP50.className = 'num';
-        tdP50.textContent = s.beta_p50_ms.mean + ' (±' + s.beta_p50_ms.std + ')';
+        tdP50.textContent = s.beta_p50_ms.mean + ' (±' + s.beta_p50_ms.std + ') ';
+        tdP50.appendChild(createInfoButton('p50'));
+        tdP50.appendChild(createInfoButton('the plus-minus spread'));
         tr.appendChild(tdP50);
 
         var tdP95 = document.createElement('td');
         tdP95.className = 'num';
-        tdP95.textContent = s.beta_p95_ms.mean + ' (±' + s.beta_p95_ms.std + ')';
+        tdP95.textContent = s.beta_p95_ms.mean + ' (±' + s.beta_p95_ms.std + ') ';
+        tdP95.appendChild(createInfoButton('p95'));
         tr.appendChild(tdP95);
 
         var tdErr = document.createElement('td');
         tdErr.className = 'num';
-        tdErr.textContent = s.beta_error_rate.mean + ' (±' + s.beta_error_rate.std + ')';
+        tdErr.textContent = s.beta_error_rate.mean + ' (±' + s.beta_error_rate.std + ') ';
+        tdErr.appendChild(createInfoButton('Beta error rate'));
         tr.appendChild(tdErr);
 
         var td429 = document.createElement('td');
         td429.className = 'num';
-        td429.textContent = s.acme_429.mean + ' (±' + s.acme_429.std + ')';
+        td429.textContent = s.acme_429.mean + ' (±' + s.acme_429.std + ') ';
+        td429.appendChild(createInfoButton('Acme 429s'));
         tr.appendChild(td429);
 
         var tdTimeouts = document.createElement('td');
         tdTimeouts.className = 'num';
-        tdTimeouts.textContent = s.acme_timeouts.mean + ' (±' + s.acme_timeouts.std + ')';
+        tdTimeouts.textContent = s.acme_timeouts.mean + ' (±' + s.acme_timeouts.std + ') ';
+        tdTimeouts.appendChild(createInfoButton('Acme timeouts'));
         tr.appendChild(tdTimeouts);
 
         tbody.appendChild(tr);
@@ -913,17 +1510,20 @@
 
         var tdReq = document.createElement('td');
         tdReq.className = 'num';
-        tdReq.textContent = t.request_count.toLocaleString();
+        tdReq.textContent = t.request_count.toLocaleString() + ' ';
+        tdReq.appendChild(createInfoButton('Requests'));
         tr.appendChild(tdReq);
 
         var tdErr = document.createElement('td');
         tdErr.className = 'num';
-        tdErr.textContent = t.error_count.toLocaleString();
+        tdErr.textContent = t.error_count.toLocaleString() + ' ';
+        tdErr.appendChild(createInfoButton('Errors'));
         tr.appendChild(tdErr);
 
         var tdLat = document.createElement('td');
         tdLat.className = 'num';
-        tdLat.textContent = t.avg_latency_ms.toFixed(2);
+        tdLat.textContent = t.avg_latency_ms.toFixed(2) + ' ';
+        tdLat.appendChild(createInfoButton('Average latency'));
         tr.appendChild(tdLat);
 
         tbody.appendChild(tr);
@@ -1015,11 +1615,13 @@
 
           var tdVer = document.createElement('td');
           tdVer.className = 'num';
-          tdVer.textContent = keyItem.key_version;
+          tdVer.textContent = keyItem.key_version + ' ';
+          tdVer.appendChild(createInfoButton('Key version'));
           tr.appendChild(tdVer);
 
           var tdStat = document.createElement('td');
           tdStat.appendChild(createStatusBadge(keyItem.status, getDotTypeForStatus(keyItem.status)));
+          tdStat.appendChild(createInfoButton(keyItem.status));
           tr.appendChild(tdStat);
 
           var tdCreated = document.createElement('td');
@@ -1030,11 +1632,17 @@
           var tdRet = document.createElement('td');
           tdRet.style.fontSize = '12px';
           tdRet.textContent = keyItem.retired_at ? new Date(keyItem.retired_at).toLocaleString() : '—';
+          if (keyItem.retired_at) {
+            tdRet.appendChild(createInfoButton('retired'));
+          }
           tr.appendChild(tdRet);
 
           var tdDes = document.createElement('td');
           tdDes.style.fontSize = '12px';
           tdDes.textContent = keyItem.destroyed_at ? new Date(keyItem.destroyed_at).toLocaleString() : '—';
+          if (keyItem.destroyed_at) {
+            tdDes.appendChild(createInfoButton('destroyed'));
+          }
           tr.appendChild(tdDes);
 
           tbody.appendChild(tr);
@@ -1045,5 +1653,49 @@
       emptyEl.style.display = 'block';
     }
   }
+
+  // =========================================================================
+  // APPLICATION BOOTSTRAP
+  // =========================================================================
+  async function initSession() {
+    hideConfirmModal();
+    var storedToken = null;
+    try {
+      storedToken = sessionStorage.getItem(STORAGE_TOKEN_KEY) || sessionStorage.getItem('token');
+    } catch (e) {}
+
+    if (!storedToken) {
+      handleSignOut();
+      return;
+    }
+
+    // Check token expiry on load
+    if (isTokenExpired(storedToken)) {
+      handleSignOut();
+      showLoginError('Session expired. Please sign in again.');
+      return;
+    }
+
+    authToken = storedToken;
+
+    // Confirm token with profile endpoint
+    try {
+      var userRes = await apiFetch('/admin/dashboard/me');
+      if (!userRes.ok) {
+        handleSignOut();
+        showLoginError('Session expired or unauthorized. Please sign in again.');
+        return;
+      }
+
+      currentUser = await userRes.json();
+      renderAppShell();
+      handleRoute();
+    } catch (err) {
+      handleSignOut();
+    }
+  }
+
+  // Initialize session on page load
+  initSession();
 
 })();

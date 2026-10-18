@@ -205,3 +205,109 @@ def test_09_user_context_endpoint_returns_tenant_name(client: TestClient, acme_a
     assert res_admin.status_code == 200
     admin_data = res_admin.json()
     assert admin_data["role"] == "platform_admin"
+
+
+# ------------------------------------------------------------------------------
+# 7. Glossary Verification & UI Element Reference Tests (Part 1)
+# ------------------------------------------------------------------------------
+def _extract_js_glossary_dict() -> dict:
+    """Safely extracts and parses the GLOSSARY object from ui/glossary.js."""
+    glossary_path = Path(__file__).resolve().parent.parent / "ui" / "glossary.js"
+    assert glossary_path.exists(), "ui/glossary.js does not exist"
+    content = glossary_path.read_text(encoding="utf-8")
+
+    # Match GLOSSARY = { ... }; block
+    start_marker = "var GLOSSARY = {"
+    start_idx = content.find(start_marker)
+    assert start_idx != -1, "GLOSSARY definition not found in ui/glossary.js"
+    brace_start = start_idx + len("var GLOSSARY =")
+    
+    # Simple regex parse supporting escaped characters like \'
+    import re
+    term_pattern = re.compile(
+        r"'(?P<key>(?:\\.|[^'])+)':\s*\{\s*"
+        r"name:\s*'(?P<name>(?:\\.|[^'])*)',\s*"
+        r"meaning:\s*'(?P<meaning>(?:\\.|[^'])*)',\s*"
+        r"calculation:\s*'(?P<calculation>(?:\\.|[^'])*)',\s*"
+        r"howToRead:\s*'(?P<howToRead>(?:\\.|[^'])*)'\s*\}",
+        re.MULTILINE | re.DOTALL,
+    )
+    terms = {}
+    for m in term_pattern.finditer(content):
+        d = m.groupdict()
+        terms[d["key"]] = d
+    return terms
+
+
+def test_10_glossary_defines_all_required_terms(client: TestClient):
+    """Verifies ui/glossary.js exists, is served via /ui/glossary.js, and defines all required terms with meaning, calculation, and howToRead."""
+    resp = client.get("/ui/glossary.js")
+    assert resp.status_code == 200
+    assert "Content-Security-Policy" in resp.headers
+
+    terms = _extract_js_glossary_dict()
+    assert len(terms) >= 32, f"Expected comprehensive glossary definitions, got {len(terms)} terms"
+
+    required_terms = [
+        "Verdict", "Attacks run", "Blocked", "Leaked", "Inconclusive",
+        "Canary integrity", "INTACT", "COMPROMISED", "List-leak check",
+        "Method", "GET", "POST", "PUT", "DELETE",
+        "HTTP status", "201", "403", "404", "429",
+        "Blocking control", "TOKEN_TENANT_CONTEXT", "ROLE_CHECK", "OWNERSHIP_CHECK",
+        "RLS_FILTERED", "QUERY_TENANT_FILTER", "DECRYPT_FAILED", "unknown",
+        "Layer A", "Layer B", "Layer C", "Layer A, B, C",
+        "Configuration (a)", "Configuration (b)", "Configuration (c)", "Configuration (d)", "Configuration (e)",
+        "Configuration (a) to (e)",
+        "Read leaks", "Write leaks", "Update leaks", "Delete leaks", "Read, Write, Update and Delete leaks",
+        "Active protections", "Mutation", "CAUGHT", "MISSED", "CAUGHT and MISSED",
+        "Isolated run", "Masked run", "Isolated run and Masked run",
+        "Detection method", "ATTACK_SUITE", "DEDICATED_PROBE", "Detection method (ATTACK_SUITE, DEDICATED_PROBE)",
+        "Baseline restored", "p50", "p95", "the plus-minus spread",
+        "Beta error rate", "Acme 429s", "Acme timeouts", "Quiet-only baseline", "Harness overhead",
+        "none", "request-count", "concurrency", "statement timeout", "cost-based", "combined", "each limiter strategy",
+        "quiet baseline", "high volume", "expensive", "each load type",
+        "Requests", "Errors", "Average latency", "Requests, Errors and Average latency in Tenant metrics",
+        "Key version", "Key status", "active", "retired", "destroyed", "Key status (active, retired, destroyed)"
+    ]
+
+    for req in required_terms:
+        assert req in terms, f"Required term '{req}' missing from ui/glossary.js"
+        entry = terms[req]
+        assert len(entry["meaning"].strip()) > 0, f"Term '{req}' meaning is empty"
+        assert len(entry["calculation"].strip()) > 0, f"Term '{req}' calculation is empty"
+        assert len(entry["howToRead"].strip()) > 0, f"Term '{req}' howToRead is empty"
+
+
+def test_11_all_ui_glossary_references_exist_in_glossary():
+    """Verifies that every term referenced by data-glossary in ui/index.html and ui/app.js exists in the glossary."""
+    terms = _extract_js_glossary_dict()
+    ui_dir = Path(__file__).resolve().parent.parent / "ui"
+    index_html = (ui_dir / "index.html").read_text(encoding="utf-8")
+    app_js = (ui_dir / "app.js").read_text(encoding="utf-8")
+
+    import re
+    # Extract data-glossary="..." from index.html
+    html_refs = set(re.findall(r'data-glossary="([^"]+)"', index_html))
+    for ref in html_refs:
+        assert ref in terms, f"UI index.html references '{ref}' which is missing from glossary"
+
+    # Extract createInfoButton('...') calls in app.js
+    js_refs = set(re.findall(r"createInfoButton\(['\"]([^'\"]+)['\"]\)", app_js))
+    for ref in js_refs:
+        # Check direct or normalized key presence
+        assert ref in terms or ref.lower() in [k.lower() for k in terms], (
+            f"app.js creates info button for '{ref}' which is missing from glossary"
+        )
+
+
+def test_12_glossary_text_renders_as_plain_text():
+    """Verifies that glossary definitions, calculations, and examples are pure plain text without HTML tags."""
+    terms = _extract_js_glossary_dict()
+    import re
+    html_tag_re = re.compile(r"<[^>]+>")
+
+    for key, item in terms.items():
+        for field in ("meaning", "calculation", "howToRead"):
+            val = item[field]
+            assert not html_tag_re.search(val), f"Term '{key}' field '{field}' contains unescaped HTML tag: {val}"
+

@@ -152,34 +152,44 @@
         <section class="dashboard-section" id="section-verification">
           <div class="section-header">
             <h2>Latest verification run</h2>
-            <span class="text-small" id="verif-run-time"></span>
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <button type="button" class="btn btn-sm btn-primary" id="btn-run-verification">Run verification now</button>
+              <button type="button" class="how-it-works-toggle" data-target="how-verif">How this section works</button>
+              <span class="text-small" id="verif-run-time"></span>
+            </div>
+          </div>
+          <div id="verif-run-status-bar" style="display: none; margin-top: 8px; margin-bottom: 8px; padding: 8px 12px; border-radius: var(--radius); font-size: 13px;" class="alert-info"></div>
+          <div class="how-it-works-panel" id="how-verif">
+            <div class="how-it-works-line"><span class="how-it-works-label">Purpose:</span>Verifies cross-tenant isolation and data segregation under normal operating mode by running simulated attacks.</div>
+            <div class="how-it-works-line"><span class="how-it-works-label">Source:</span>Newest baseline results/verification_attack_report_*.json file.</div>
+            <div class="how-it-works-line"><span class="how-it-works-label">How produced:</span>Executed via python -m verifier.runner running 11 attacks, checking canary document integrity in the lab DB, and validating zero list leaks.</div>
           </div>
           <hr>
 
           <div id="verif-empty" class="empty-state" style="display: none;">
-            No verification run found. Run: <code>python -m verifier.runner</code>
+            No verification run found. Run: <code>python scripts/run_verifier.py</code>
           </div>
 
           <div id="verif-content">
             <div class="section-summary-row">
-              <div class="summary-stat">Verdict: <strong id="verif-verdict"></strong></div>
-              <div class="summary-stat">Attacks run: <strong id="verif-total" class="tabular-nums"></strong></div>
-              <div class="summary-stat">Blocked: <strong id="verif-blocked" class="tabular-nums"></strong></div>
-              <div class="summary-stat">Leaked: <strong id="verif-leaked" class="tabular-nums"></strong></div>
-              <div class="summary-stat">Inconclusive: <strong id="verif-inconclusive" class="tabular-nums"></strong></div>
-              <div class="summary-stat">Canary integrity: <strong id="verif-canary"></strong></div>
-              <div class="summary-stat">List-leak check: <strong id="verif-list-leak"></strong></div>
+              <div class="summary-stat"><span data-glossary="Verdict">Verdict</span>: <strong id="verif-verdict"></strong></div>
+              <div class="summary-stat"><span data-glossary="Attacks run">Attacks run</span>: <strong id="verif-total" class="tabular-nums"></strong></div>
+              <div class="summary-stat"><span data-glossary="Blocked">Blocked</span>: <strong id="verif-blocked" class="tabular-nums"></strong></div>
+              <div class="summary-stat"><span data-glossary="Leaked">Leaked</span>: <strong id="verif-leaked" class="tabular-nums"></strong></div>
+              <div class="summary-stat"><span data-glossary="Inconclusive">Inconclusive</span>: <strong id="verif-inconclusive" class="tabular-nums"></strong></div>
+              <div class="summary-stat"><span data-glossary="Canary integrity">Canary integrity</span>: <strong id="verif-canary"></strong></div>
+              <div class="summary-stat"><span data-glossary="List-leak check">List-leak check</span>: <strong id="verif-list-leak"></strong></div>
             </div>
 
             <div class="table-wrapper">
               <table>
                 <thead>
                   <tr>
-                    <th>Method</th>
+                    <th data-glossary="Method">Method</th>
                     <th>Target path</th>
-                    <th class="num">HTTP status</th>
-                    <th>Outcome</th>
-                    <th>Blocking control</th>
+                    <th class="num" data-glossary="HTTP status">HTTP status</th>
+                    <th data-glossary="Verdict">Outcome</th>
+                    <th data-glossary="Blocking control">Blocking control</th>
                   </tr>
                 </thead>
                 <tbody id="verif-table-body">
@@ -187,7 +197,7 @@
                 </tbody>
               </table>
             </div>
-            <p class="experiment-note">Results describe these runs only.</p>
+            <p class="experiment-note">Results describe these runs only. Note: Document IDs in the table are created fresh by each run.</p>
           </div>
         </section>
 
@@ -195,7 +205,15 @@
         <section class="dashboard-section" id="section-layer-kill">
           <div class="section-header">
             <h2>Layer-kill matrix</h2>
-            <span class="text-small" id="layer-run-time"></span>
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <button type="button" class="how-it-works-toggle" data-target="how-layer">How this section works</button>
+              <span class="text-small" id="layer-run-time"></span>
+            </div>
+          </div>
+          <div class="how-it-works-panel" id="how-layer">
+            <div class="how-it-works-line"><span class="how-it-works-label">Purpose:</span>Tests defense-in-depth by systematically disabling isolation layers to ensure no single layer failure exposes tenant data.</div>
+            <div class="how-it-works-line"><span class="how-it-works-label">Source:</span>Newest results/layer_kill_matrix_*.json file.</div>
+            <div class="how-it-works-line"><span class="how-it-works-label">How produced:</span>Executed via python -m verifier.layer_kill cycling through 5 configurations ((a) to (e)) of Layer A, B, and C in the lab database.</div>
           </div>
           <hr>
 
@@ -204,21 +222,21 @@
           </div>
 
           <div id="layer-content">
-            <div class="summary-stat" style="margin-bottom: 12px;">Overall matrix verdict: <strong id="layer-verdict"></strong></div>
+            <div class="summary-stat" style="margin-bottom: 12px;"><span data-glossary="Verdict">Overall matrix verdict</span>: <strong id="layer-verdict"></strong></div>
             <div class="table-wrapper">
               <table>
                 <thead>
                   <tr>
-                    <th>Configuration</th>
-                    <th>App check (A)</th>
-                    <th>DB RLS (B)</th>
-                    <th>Query filter (C)</th>
-                    <th class="num">Read leaks</th>
-                    <th class="num">Write leaks</th>
-                    <th class="num">Update leaks</th>
-                    <th class="num">Delete leaks</th>
-                    <th>Active protections</th>
-                    <th>Verdict</th>
+                    <th data-glossary="Configuration (a) to (e)">Configuration</th>
+                    <th data-glossary="Layer A">App check (A)</th>
+                    <th data-glossary="Layer B">DB RLS (B)</th>
+                    <th data-glossary="Layer C">Query filter (C)</th>
+                    <th class="num" data-glossary="Read leaks">Read leaks</th>
+                    <th class="num" data-glossary="Write leaks">Write leaks</th>
+                    <th class="num" data-glossary="Update leaks">Update leaks</th>
+                    <th class="num" data-glossary="Delete leaks">Delete leaks</th>
+                    <th data-glossary="Active protections">Active protections</th>
+                    <th data-glossary="Verdict">Verdict</th>
                   </tr>
                 </thead>
                 <tbody id="layer-table-body">
@@ -234,7 +252,15 @@
         <section class="dashboard-section" id="section-mutation">
           <div class="section-header">
             <h2>Mutation testing</h2>
-            <span class="text-small" id="mut-run-time"></span>
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <button type="button" class="how-it-works-toggle" data-target="how-mut">How this section works</button>
+              <span class="text-small" id="mut-run-time"></span>
+            </div>
+          </div>
+          <div class="how-it-works-panel" id="how-mut">
+            <div class="how-it-works-line"><span class="how-it-works-label">Purpose:</span>Validates the sensitivity of the verification suite by deliberately introducing code faults and checking if they are detected.</div>
+            <div class="how-it-works-line"><span class="how-it-works-label">Source:</span>Newest results/mutation_report_*.json file.</div>
+            <div class="how-it-works-line"><span class="how-it-works-label">How produced:</span>Executed via python scripts/run_mutation.py running isolated and masked attack suites and dedicated probes for each mutation.</div>
           </div>
           <hr>
 
@@ -243,17 +269,17 @@
           </div>
 
           <div id="mut-content">
-            <div class="summary-stat" style="margin-bottom: 12px;">Isolation mutation score: <strong id="mut-score"></strong></div>
+            <div class="summary-stat" style="margin-bottom: 12px;"><span data-glossary="Mutation">Isolation mutation score</span>: <strong id="mut-score"></strong></div>
             <div class="table-wrapper">
               <table>
                 <thead>
                   <tr>
-                    <th>Mutation</th>
-                    <th>Mutated layer</th>
-                    <th>Detection method</th>
-                    <th>Isolated result</th>
-                    <th>Masked result</th>
-                    <th>Baseline restored</th>
+                    <th data-glossary="Mutation">Mutation</th>
+                    <th data-glossary="Layer A, B, C">Mutated layer</th>
+                    <th data-glossary="Detection method (ATTACK_SUITE, DEDICATED_PROBE)">Detection method</th>
+                    <th data-glossary="Isolated run">Isolated result</th>
+                    <th data-glossary="Masked run">Masked result</th>
+                    <th data-glossary="Baseline restored">Baseline restored</th>
                   </tr>
                 </thead>
                 <tbody id="mut-table-body">
@@ -269,7 +295,15 @@
         <section class="dashboard-section" id="section-noisy-neighbour">
           <div class="section-header">
             <h2>Noisy-neighbour experiment</h2>
-            <span class="text-small" id="noisy-run-time"></span>
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <button type="button" class="how-it-works-toggle" data-target="how-noisy">How this section works</button>
+              <span class="text-small" id="noisy-run-time"></span>
+            </div>
+          </div>
+          <div class="how-it-works-panel" id="how-noisy">
+            <div class="how-it-works-line"><span class="how-it-works-label">Purpose:</span>Evaluates performance isolation and noisy-neighbour protection when one tenant generates high volume or expensive traffic.</div>
+            <div class="how-it-works-line"><span class="how-it-works-label">Source:</span>Newest results/level6_experiment_results_*.json file.</div>
+            <div class="how-it-works-line"><span class="how-it-works-label">How produced:</span>Executed via python -m loadtests.runner measuring p50, p95, error rates, 429s, and timeouts across multiple limiter strategies.</div>
           </div>
           <hr>
 
@@ -282,13 +316,13 @@
               <table>
                 <thead>
                   <tr>
-                    <th>Strategy</th>
-                    <th>Load type</th>
-                    <th class="num">Beta p50 (ms)</th>
-                    <th class="num">Beta p95 (ms)</th>
-                    <th class="num">Beta err rate</th>
-                    <th class="num">Acme 429s</th>
-                    <th class="num">Acme timeouts</th>
+                    <th data-glossary="each limiter strategy">Strategy</th>
+                    <th data-glossary="each load type">Load type</th>
+                    <th class="num" data-glossary="p50">Beta p50 (ms)</th>
+                    <th class="num" data-glossary="p95">Beta p95 (ms)</th>
+                    <th class="num" data-glossary="Beta error rate">Beta err rate</th>
+                    <th class="num" data-glossary="Acme 429s">Acme 429s</th>
+                    <th class="num" data-glossary="Acme timeouts">Acme timeouts</th>
                   </tr>
                 </thead>
                 <tbody id="noisy-table-body">
@@ -311,7 +345,15 @@
         <section class="dashboard-section" id="section-metrics">
           <div class="section-header">
             <h2>Per-tenant metrics</h2>
-            <span class="text-small">Live telemetry from Redis (last 60 min)</span>
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <button type="button" class="how-it-works-toggle" data-target="how-metrics">How this section works</button>
+              <span class="text-small">Live telemetry from Redis (last 60 min)</span>
+            </div>
+          </div>
+          <div class="how-it-works-panel" id="how-metrics">
+            <div class="how-it-works-line"><span class="how-it-works-label">Purpose:</span>Monitors real-time operational traffic, error rates, and average latency per tenant.</div>
+            <div class="how-it-works-line"><span class="how-it-works-label">Source:</span>Live Redis telemetry via GET /admin/metrics?window_minutes=60.</div>
+            <div class="how-it-works-line"><span class="how-it-works-label">How produced:</span>Collected continuously by TenantMetricsMiddleware in app/core/limiter.py on every API request over a sliding 60-minute window.</div>
           </div>
           <hr>
 
@@ -326,9 +368,9 @@
                   <thead>
                     <tr>
                       <th>Tenant ID</th>
-                      <th class="num">Requests</th>
-                      <th class="num">Errors</th>
-                      <th class="num">Avg latency (ms)</th>
+                      <th class="num" data-glossary="Requests">Requests</th>
+                      <th class="num" data-glossary="Errors">Errors</th>
+                      <th class="num" data-glossary="Average latency">Avg latency (ms)</th>
                     </tr>
                   </thead>
                   <tbody id="metrics-table-body">
@@ -348,7 +390,15 @@
         <section class="dashboard-section" id="section-keys">
           <div class="section-header">
             <h2>Tenant key status</h2>
-            <span class="text-small">Cryptographic key version and state</span>
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <button type="button" class="how-it-works-toggle" data-target="how-keys">How this section works</button>
+              <span class="text-small">Cryptographic key version and state</span>
+            </div>
+          </div>
+          <div class="how-it-works-panel" id="how-keys">
+            <div class="how-it-works-line"><span class="how-it-works-label">Purpose:</span>Displays cryptographic envelope encryption key versions and lifecycle states without exposing key material.</div>
+            <div class="how-it-works-line"><span class="how-it-works-label">Source:</span>Live database queries on tenant_keys via GET /admin/dashboard/keys.</div>
+            <div class="how-it-works-line"><span class="how-it-works-label">How produced:</span>Provisioned, rotated, and shredded via KMS envelope encryption functions in app/core/crypto.py.</div>
           </div>
           <hr>
 
@@ -363,11 +413,11 @@
                   <tr>
                     <th>Tenant name</th>
                     <th>Tenant ID</th>
-                    <th class="num">Key version</th>
-                    <th>Status</th>
+                    <th class="num" data-glossary="Key version">Key version</th>
+                    <th data-glossary="Key status (active, retired, destroyed)">Status</th>
                     <th>Created</th>
-                    <th>Retired</th>
-                    <th>Destroyed</th>
+                    <th data-glossary="retired">Retired</th>
+                    <th data-glossary="destroyed">Destroyed</th>
                   </tr>
                 </thead>
                 <tbody id="keys-table-body">
@@ -376,6 +426,21 @@
               </table>
             </div>
             <p class="experiment-note">Zero key material, nonces, or ciphertext are exposed.</p>
+          </div>
+        </section>
+
+        <!-- 7. Glossary Section -->
+        <section class="dashboard-section" id="section-glossary">
+          <div class="section-header">
+            <h2>Glossary</h2>
+            <span class="text-small">System terminology, metrics, and security mechanisms</span>
+          </div>
+          <hr>
+          <div style="margin-bottom: 16px;">
+            <input type="text" id="glossary-search-input" class="form-input" placeholder="Search or filter terms..." style="max-width: 380px;" aria-label="Filter glossary terms">
+          </div>
+          <div class="glossary-grid" id="glossary-items-container">
+            <!-- Populated via textContent -->
           </div>
         </section>
 
@@ -398,6 +463,7 @@
 
   <!-- Local Offline Scripts -->
   <script src="/ui/vendor/chart.js"></script>
+  <script src="/ui/glossary.js"></script>
   <script src="/ui/app.js"></script>
 </body>
 </html>

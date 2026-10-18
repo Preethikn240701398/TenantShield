@@ -81,6 +81,32 @@ def get_latest_result_file(prefix: str, extension: str = ".json") -> Optional[Pa
     return candidates[0]
 
 
+def get_latest_baseline_verification_file() -> Optional[Path]:
+    """
+    Resolves the newest verification report strictly matching run_type == 'BASELINE'.
+    Reports without run_type are UNKNOWN and ignored.
+    """
+    if not RESULTS_DIR.exists() or not RESULTS_DIR.is_dir():
+        return None
+
+    safe_pattern = "verification_attack_report_*.json"
+    candidates = list(RESULTS_DIR.glob(safe_pattern))
+    if not candidates:
+        return None
+
+    candidates.sort(key=lambda p: (p.stat().st_mtime, p.name), reverse=True)
+    for c in candidates:
+        try:
+            with open(c, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            run_type = data.get("run_type") or data.get("summary", {}).get("run_type")
+            if run_type == "BASELINE":
+                return c
+        except Exception:
+            continue
+    return None
+
+
 def require_platform_admin(current_user: AuthenticatedUser) -> None:
     if current_user.role != "platform_admin":
         raise HTTPException(
@@ -125,15 +151,15 @@ async def get_verification_report(
 ) -> Dict[str, Any]:
     """
     Returns latest verification run data with exact stored verdict and per-attack breakdown.
-    Requires platform_admin role.
+    Requires platform_admin role. Only returns newest report where run_type == 'BASELINE'.
     """
     require_platform_admin(current_user)
 
-    target_file = get_latest_result_file("verification_attack_report")
+    target_file = get_latest_baseline_verification_file()
     if not target_file:
         return {
             "status": "empty",
-            "message": "No verification run found. Run: python -m verifier.runner",
+            "message": "No verification run found. Run: python scripts/run_verifier.py (or python -m verifier.runner)",
         }
 
     try:

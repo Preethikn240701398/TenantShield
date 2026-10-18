@@ -655,6 +655,7 @@ class VerificationRunner:
 
             report = {
                 "suite": "TenantShield Verification Package: Dynamic Cross-Tenant Attack Verification",
+                "run_type": "BASELINE",
                 "generated_at_utc": now_iso,
                 "environment": {
                     "database_url": settings.DATABASE_URL.split("@")[-1],
@@ -663,6 +664,7 @@ class VerificationRunner:
                 },
                 "discovered_endpoints": discovered_endpoints,
                 "summary": {
+                    "run_type": "BASELINE",
                     "total_attacks_run": total_attacks,
                     "blocked_attacks": blocked_count,
                     "leaked_attacks": leaked_count,

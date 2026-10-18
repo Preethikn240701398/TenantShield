@@ -1,0 +1,1154 @@
+{
+  "suite": "TenantShield: Isolation Mutation Testing",
+  "run_id": "mut_run_20261018_140859",
+  "timestamp": "2026-10-18T14:08:59.752752+00:00",
+  "definitions": {
+    "mutation": "A deliberately injected realistic mistake.",
+    "isolated_run": "The mutation is applied and every other isolation protection that could hide it is switched off (using lab switches), so only the mutated layer stands between tenants.",
+    "caught": "A mutation is CAUGHT if the attack suite reports a leak in its ISOLATED run.",
+    "missed": "A mutation is MISSED if the suite reports no leak in its ISOLATED run, meaning the attack suite cannot see that mistake.",
+    "masked_run": "The same mutation with all other protections ON. Evaluates whether defense-in-depth layers masked the mistake. Informational and not part of the score."
+  },
+  "environment": {
+    "app_env": "lab",
+    "database": "tenantshield_lab",
+    "redis_server": "Memurai Developer (localhost:6379)"
+  },
+  "baseline_run": {
+    "verdict": "NO_LEAK_DETECTED",
+    "control_passed": true,
+    "leaks": 0,
+    "cross_tenant_leak": "no",
+    "owner_access_lost": "no",
+    "evidence": {
+      "current_user": "postgres",
+      "relrowsecurity": true,
+      "relforcerowsecurity": true,
+      "policies": [
+        {
+          "policyname": "tenant_isolation_policy",
+          "cmd": "ALL",
+          "roles": "{public}",
+          "qual": "(tenant_id = (NULLIF(current_setting('app.current_tenant_id'::text, true), ''::text))::uuid)",
+          "with_check": "(tenant_id = (NULLIF(current_setting('app.current_tenant_id'::text, true), ''::text))::uuid)"
+        }
+      ],
+      "role_attributes": {
+        "postgres": {
+          "rolsuper": true,
+          "rolbypassrls": true,
+          "rolinherit": true
+        },
+        "tenantshield_app": {
+          "rolsuper": false,
+          "rolbypassrls": false,
+          "rolinherit": true
+        }
+      },
+      "total_documents": 0,
+      "documents_per_tenant": {}
+    }
+  },
+  "isolation_mutation_score": "4 caught by the attack suite and 1 caught by a dedicated probe, out of 5",
+  "total_injected": 5,
+  "total_caught": 5,
+  "attack_suite_caught": 4,
+  "dedicated_probe_caught": 1,
+  "missed_mutations": [],
+  "mutations": [
+    {
+      "mutation_id": "mut_1_missing_query_tenant_filter",
+      "name": "Mutation 1: Query missing tenant filter in application layer",
+      "description": "Application query omits WHERE tenant_id = :tenant_id clause in document operations.",
+      "mutated_layer": "Layer C (Application Query Filter)",
+      "detection_method": "ATTACK_SUITE",
+      "isolated_outcome": "CAUGHT",
+      "cross_tenant_leak": "no",
+      "owner_access_lost": "no",
+      "isolated_run": {
+        "outcome": "CAUGHT",
+        "total_leaks": 3,
+        "overall_verdict": "LEAK_DETECTED",
+        "cross_tenant_leak": "yes",
+        "owner_access_lost": "no",
+        "control_passed": true,
+        "canary_integrity": "COMPROMISED",
+        "list_leak_check": "PASSED",
+        "attacks": [
+          {
+            "attack_name": "Cross-Tenant Create Injection: POST /documents (Body Reference)",
+            "category": "create_injection",
+            "method": "POST",
+            "target_path": "/documents",
+            "status_code": 201,
+            "outcome": "BLOCKED",
+            "data_leak_detected": false,
+            "leak_evidence": null,
+            "integrity_check": null,
+            "owner_access_lost": false,
+            "blocking_control": "TOKEN_TENANT_CONTEXT",
+            "description": "Tenant A attempts to inject a resource directly into Tenant B's workspace via /documents by spoofing tenant_id in payload, query, and headers.",
+            "create_injection_proof": {
+              "new_doc_id": "5b617943-c07d-4d4d-a05b-fbde87ac3afd",
+              "assigned_tenant_id": "16d055e9-a456-4e5a-90fe-31ceaed81ba3",
+              "attacker_tenant_id": "16d055e9-a456-4e5a-90fe-31ceaed81ba3",
+              "target_tenant_id": "21cb8f74-9652-4ee7-b115-0b8ba60df36c",
+              "new_doc_owned_by_attacker": true,
+              "new_doc_owned_by_target": false,
+              "visible_to_b_via_get": false,
+              "visible_to_b_via_list": false,
+              "visible_to_a": true,
+              "beta_canary_intact": true,
+              "beta_canary_status": "INTACT"
+            },
+            "observed_reason": "TOKEN_TENANT_CONTEXT"
+          },
+          {
+            "attack_name": "Cross-Tenant Read: GET /documents/{document_id}",
+            "category": "read",
+            "method": "GET",
+            "target_path": "/documents/a97896c2-4a24-4a1b-8b29-0a12c15f326b",
+            "status_code": 404,
+            "outcome": "BLOCKED",
+            "data_leak_detected": false,
+            "leak_evidence": null,
+            "integrity_check": null,
+            "owner_access_lost": false,
+            "blocking_control": "unknown",
+            "description": "Tenant A attempts unauthorized GET on Tenant B's document_id via /documents/{document_id} (Get Tenant Document).",
+            "create_injection_proof": null,
+            "observed_reason": "DECRYPT_FAILED"
+          },
+          {
+            "attack_name": "Cross-Tenant Update: PUT /documents/{document_id}",
+            "category": "update",
+            "method": "PUT",
+            "target_path": "/documents/a97896c2-4a24-4a1b-8b29-0a12c15f326b",
+            "status_code": 200,
+            "outcome": "LEAKED",
+            "data_leak_detected": false,
+            "leak_evidence": "Integrity violation on Tenant B resource: Document unreadable (status 404) and admin DB check failed: Document decryption failed: Ciphertext, nonce, or authenticated metadata verification failed.",
+            "integrity_check": {
+              "intact": false,
+              "status": "LEAKED",
+              "reason": "Document unreadable (status 404) and admin DB check failed: Document decryption failed: Ciphertext, nonce, or authenticated metadata verification failed."
+            },
+            "owner_access_lost": false,
+            "blocking_control": "none",
+            "description": "Tenant A attempts unauthorized PUT tampering with Tenant B's document_id via /documents/{document_id}.",
+            "create_injection_proof": null,
+            "observed_reason": "NONE"
+          },
+          {
+            "attack_name": "Cross-Tenant Delete: DELETE /documents/{document_id}",
+            "category": "delete",
+            "method": "DELETE",
+            "target_path": "/documents/a97896c2-4a24-4a1b-8b29-0a12c15f326b",
+            "status_code": 204,
+            "outcome": "LEAKED",
+            "data_leak_detected": false,
+            "leak_evidence": "Integrity violation on Tenant B resource: Target document row a97896c2-4a24-4a1b-8b29-0a12c15f326b does not exist in database",
+            "integrity_check": {
+              "intact": false,
+              "status": "LEAKED",
+              "reason": "Target document row a97896c2-4a24-4a1b-8b29-0a12c15f326b does not exist in database",
+              "admin_verification": {
+                "exists": false,
+                "unchanged": false,
+                "title_matches": false,
+                "content_matches": false,
+                "reason": "Target document row a97896c2-4a24-4a1b-8b29-0a12c15f326b does not exist in database"
+              }
+            },
+            "owner_access_lost": false,
+            "blocking_control": "none",
+            "description": "Tenant A attempts unauthorized destruction of Tenant B's document_id via /documents/{document_id}.",
+            "create_injection_proof": null,
+            "observed_reason": "NONE"
+          },
+          {
+            "attack_name": "Cross-Tenant Action: POST /admin/keys/{tenant_id}/rotate",
+            "category": "action",
+            "method": "POST",
+            "target_path": "/admin/keys/21cb8f74-9652-4ee7-b115-0b8ba60df36c/rotate",
+            "status_code": 403,
+            "outcome": "BLOCKED",
+            "data_leak_detected": false,
+            "leak_evidence": null,
+            "integrity_check": null,
+            "owner_access_lost": false,
+            "blocking_control": "ROLE_CHECK",
+            "description": "Tenant A attempts unauthorized management action on Tenant B's tenant_id via /admin/keys/{tenant_id}/rotate.",
+            "create_injection_proof": null,
+            "observed_reason": "ROLE_CHECK"
+          },
+          {
+            "attack_name": "Cross-Tenant Action: POST /admin/keys/{tenant_id}/shred",
+            "category": "action",
+            "method": "POST",
+            "target_path": "/admin/keys/21cb8f74-9652-4ee7-b115-0b8ba60df36c/shred",
+            "status_code": 403,
+            "outcome": "BLOCKED",
+            "data_leak_detected": false,
+            "leak_evidence": null,
+            "integrity_check": null,
+            "owner_access_lost": false,
+            "blocking_control": "ROLE_CHECK",
+            "description": "Tenant A attempts unauthorized management action on Tenant B's tenant_id via /admin/keys/{tenant_id}/shred.",
+            "create_injection_proof": null,
+            "observed_reason": "ROLE_CHECK"
+          },
+          {
+            "attack_name": "Cross-Tenant Create Injection: POST /admin/limiter/strategy (Body Reference)",
+            "category": "create_injection",
+            "method": "POST",
+            "target_path": "/admin/limiter/strategy",
+            "status_code": 403,
+            "outcome": "BLOCKED",
+            "data_leak_detected": false,
+            "leak_evidence": null,
+            "integrity_check": null,
+            "owner_access_lost": false,
+            "blocking_control": "ROLE_CHECK",
+            "description": "Tenant A attempts to inject a resource directly into Tenant B's workspace via /admin/limiter/strategy by spoofing tenant_id in payload, query, and headers.",
+            "create_injection_proof": null,
+            "observed_reason": "ROLE_CHECK"
+          },
+          {
+            "attack_name": "Cross-Tenant Read: GET /admin/dashboard/run-status/{run_id}",
+            "category": "read",
+            "method": "GET",
+            "target_path": "/admin/dashboard/run-status/a97896c2-4a24-4a1b-8b29-0a12c15f326b",
+            "status_code": 403,
+            "outcome": "BLOCKED",
+            "data_leak_detected": false,
+            "leak_evidence": null,
+            "integrity_check": null,
+            "owner_access_lost": false,
+            "blocking_control": "ROLE_CHECK",
+            "description": "Tenant A attempts unauthorized GET on Tenant B's run_id via /admin/dashboard/run-status/{run_id} (Check Verification Run Status).",
+            "create_injection_proof": null,
+            "observed_reason": "ROLE_CHECK"
+          }
+        ]
+      },
+      "masked_run": {
+        "leak_detected": false,
+        "total_leaks": 0,
+        "overall_verdict": "NO_LEAK_DETECTED",
+        "cross_tenant_leak": "no",
+        "owner_access_lost": "no",
+        "masked_by_other_layers": true,
+        "control_passed": true,
+        "canary_integrity": "INTACT"
+      },
+      "evidence": {
+        "current_user": "postgres",
+        "relrowsecurity": false,
+        "relforcerowsecurity": false,
+        "policies": [
+          {
+            "policyname": "tenant_isolation_policy",
+            "cmd": "ALL",
+            "roles": "{public}",
+            "qual": "(tenant_id = (NULLIF(current_setting('app.current_tenant_id'::text, true), ''::text))::uuid)",
+            "with_check": "(tenant_id = (NULLIF(current_setting('app.current_tenant_id'::text, true), ''::text))::uuid)"
+          }
+        ],
+        "role_attributes": {
+          "postgres": {
+            "rolsuper": true,
+            "rolbypassrls": true,
+            "rolinherit": true
+          },
+          "tenantshield_app": {
+            "rolsuper": false,
+            "rolbypassrls": false,
+            "rolinherit": true
+          }
+        },
+        "total_documents": 1,
+        "documents_per_tenant": {
+          "16d055e9-a456-4e5a-90fe-31ceaed81ba3": 1
+        }
+      },
+      "uncontextualized_test": null,
+      "baseline_restored": true
+    },
+    {
+      "mutation_id": "mut_2_flipped_rls_policy",
+      "name": "Mutation 2: RLS policy with condition flipped",
+      "description": "PostgreSQL RLS policy uses 'tenant_id != current_setting(...)' allowing cross-tenant rows.",
+      "mutated_layer": "Layer B (Database RLS Policy)",
+      "detection_method": "ATTACK_SUITE",
+      "isolated_outcome": "CAUGHT",
+      "cross_tenant_leak": "no",
+      "owner_access_lost": "yes",
+      "isolated_run": {
+        "outcome": "CAUGHT",
+        "total_leaks": 3,
+        "overall_verdict": "LEAK_DETECTED",
+        "cross_tenant_leak": "yes",
+        "owner_access_lost": "no",
+        "control_passed": true,
+        "canary_integrity": "COMPROMISED",
+        "list_leak_check": "PASSED",
+        "attacks": [
+          {
+            "attack_name": "Cross-Tenant Create Injection: POST /documents (Body Reference)",
+            "category": "create_injection",
+            "method": "POST",
+            "target_path": "/documents",
+            "status_code": 500,
+            "outcome": "BLOCKED",
+            "data_leak_detected": false,
+            "leak_evidence": null,
+            "integrity_check": null,
+            "owner_access_lost": false,
+            "blocking_control": "unknown",
+            "description": "Tenant A attempts to inject a resource directly into Tenant B's workspace via /documents by spoofing tenant_id in payload, query, and headers.",
+            "create_injection_proof": null,
+            "observed_reason": "unknown"
+          },
+          {
+            "attack_name": "Cross-Tenant Read: GET /documents/{document_id}",
+            "category": "read",
+            "method": "GET",
+            "target_path": "/documents/70ba873b-0f39-48b7-825b-968fb62b3bde",
+            "status_code": 404,
+            "outcome": "BLOCKED",
+            "data_leak_detected": false,
+            "leak_evidence": null,
+            "integrity_check": null,
+            "owner_access_lost": false,
+            "blocking_control": "unknown",
+            "description": "Tenant A attempts unauthorized GET on Tenant B's document_id via /documents/{document_id} (Get Tenant Document).",
+            "create_injection_proof": null,
+            "observed_reason": "RLS_FILTERED"
+          },
+          {
+            "attack_name": "Cross-Tenant Update: PUT /documents/{document_id}",
+            "category": "update",
+            "method": "PUT",
+            "target_path": "/documents/70ba873b-0f39-48b7-825b-968fb62b3bde",
+            "status_code": 200,
+            "outcome": "LEAKED",
+            "data_leak_detected": false,
+            "leak_evidence": "Integrity violation on Tenant B resource: Document unreadable (status 404) and admin DB check failed: Document decryption failed: Ciphertext, nonce, or authenticated metadata verification failed.",
+            "integrity_check": {
+              "intact": false,
+              "status": "LEAKED",
+              "reason": "Document unreadable (status 404) and admin DB check failed: Document decryption failed: Ciphertext, nonce, or authenticated metadata verification failed."
+            },
+            "owner_access_lost": false,
+            "blocking_control": "none",
+            "description": "Tenant A attempts unauthorized PUT tampering with Tenant B's document_id via /documents/{document_id}.",
+            "create_injection_proof": null,
+            "observed_reason": "NONE"
+          },
+          {
+            "attack_name": "Cross-Tenant Delete: DELETE /documents/{document_id}",
+            "category": "delete",
+            "method": "DELETE",
+            "target_path": "/documents/70ba873b-0f39-48b7-825b-968fb62b3bde",
+            "status_code": 204,
+            "outcome": "LEAKED",
+            "data_leak_detected": false,
+            "leak_evidence": "Integrity violation on Tenant B resource: Target document row 70ba873b-0f39-48b7-825b-968fb62b3bde does not exist in database",
+            "integrity_check": {
+              "intact": false,
+              "status": "LEAKED",
+              "reason": "Target document row 70ba873b-0f39-48b7-825b-968fb62b3bde does not exist in database",
+              "admin_verification": {
+                "exists": false,
+                "unchanged": false,
+                "title_matches": false,
+                "content_matches": false,
+                "reason": "Target document row 70ba873b-0f39-48b7-825b-968fb62b3bde does not exist in database"
+              }
+            },
+            "owner_access_lost": false,
+            "blocking_control": "none",
+            "description": "Tenant A attempts unauthorized destruction of Tenant B's document_id via /documents/{document_id}.",
+            "create_injection_proof": null,
+            "observed_reason": "NONE"
+          },
+          {
+            "attack_name": "Cross-Tenant Action: POST /admin/keys/{tenant_id}/rotate",
+            "category": "action",
+            "method": "POST",
+            "target_path": "/admin/keys/61bffd98-c2cc-4198-b48b-485b8c9033e8/rotate",
+            "status_code": 403,
+            "outcome": "BLOCKED",
+            "data_leak_detected": false,
+            "leak_evidence": null,
+            "integrity_check": null,
+            "owner_access_lost": false,
+            "blocking_control": "ROLE_CHECK",
+            "description": "Tenant A attempts unauthorized management action on Tenant B's tenant_id via /admin/keys/{tenant_id}/rotate.",
+            "create_injection_proof": null,
+            "observed_reason": "ROLE_CHECK"
+          },
+          {
+            "attack_name": "Cross-Tenant Action: POST /admin/keys/{tenant_id}/shred",
+            "category": "action",
+            "method": "POST",
+            "target_path": "/admin/keys/61bffd98-c2cc-4198-b48b-485b8c9033e8/shred",
+            "status_code": 403,
+            "outcome": "BLOCKED",
+            "data_leak_detected": false,
+            "leak_evidence": null,
+            "integrity_check": null,
+            "owner_access_lost": false,
+            "blocking_control": "ROLE_CHECK",
+            "description": "Tenant A attempts unauthorized management action on Tenant B's tenant_id via /admin/keys/{tenant_id}/shred.",
+            "create_injection_proof": null,
+            "observed_reason": "ROLE_CHECK"
+          },
+          {
+            "attack_name": "Cross-Tenant Create Injection: POST /admin/limiter/strategy (Body Reference)",
+            "category": "create_injection",
+            "method": "POST",
+            "target_path": "/admin/limiter/strategy",
+            "status_code": 403,
+            "outcome": "BLOCKED",
+            "data_leak_detected": false,
+            "leak_evidence": null,
+            "integrity_check": null,
+            "owner_access_lost": false,
+            "blocking_control": "ROLE_CHECK",
+            "description": "Tenant A attempts to inject a resource directly into Tenant B's workspace via /admin/limiter/strategy by spoofing tenant_id in payload, query, and headers.",
+            "create_injection_proof": null,
+            "observed_reason": "ROLE_CHECK"
+          },
+          {
+            "attack_name": "Cross-Tenant Read: GET /admin/dashboard/run-status/{run_id}",
+            "category": "read",
+            "method": "GET",
+            "target_path": "/admin/dashboard/run-status/70ba873b-0f39-48b7-825b-968fb62b3bde",
+            "status_code": 403,
+            "outcome": "BLOCKED",
+            "data_leak_detected": false,
+            "leak_evidence": null,
+            "integrity_check": null,
+            "owner_access_lost": false,
+            "blocking_control": "ROLE_CHECK",
+            "description": "Tenant A attempts unauthorized GET on Tenant B's run_id via /admin/dashboard/run-status/{run_id} (Check Verification Run Status).",
+            "create_injection_proof": null,
+            "observed_reason": "ROLE_CHECK"
+          }
+        ]
+      },
+      "masked_run": {
+        "leak_detected": false,
+        "total_leaks": 0,
+        "overall_verdict": "NO_LEAK_DETECTED",
+        "cross_tenant_leak": "no",
+        "owner_access_lost": "yes",
+        "masked_by_other_layers": true,
+        "control_passed": true,
+        "canary_integrity": "OWNER_ACCESS_LOST"
+      },
+      "evidence": {
+        "current_user": "postgres",
+        "relrowsecurity": true,
+        "relforcerowsecurity": true,
+        "policies": [
+          {
+            "policyname": "tenant_isolation_policy",
+            "cmd": "ALL",
+            "roles": "{public}",
+            "qual": "(tenant_id <> (NULLIF(current_setting('app.current_tenant_id'::text, true), ''::text))::uuid)",
+            "with_check": "(tenant_id <> (NULLIF(current_setting('app.current_tenant_id'::text, true), ''::text))::uuid)"
+          }
+        ],
+        "role_attributes": {
+          "postgres": {
+            "rolsuper": true,
+            "rolbypassrls": true,
+            "rolinherit": true
+          },
+          "tenantshield_app": {
+            "rolsuper": false,
+            "rolbypassrls": false,
+            "rolinherit": true
+          }
+        },
+        "total_documents": 1,
+        "documents_per_tenant": {
+          "d53cd3ad-0df5-4e9b-b99f-5a71a8c602d9": 1
+        }
+      },
+      "uncontextualized_test": null,
+      "baseline_restored": true
+    },
+    {
+      "mutation_id": "mut_3_rls_not_enabled",
+      "name": "Mutation 3: RLS not enabled on documents table",
+      "description": "Documents table has ROW LEVEL SECURITY disabled or unforced.",
+      "mutated_layer": "Layer B (Database RLS Table Enforcement)",
+      "detection_method": "ATTACK_SUITE",
+      "isolated_outcome": "CAUGHT",
+      "cross_tenant_leak": "no",
+      "owner_access_lost": "no",
+      "isolated_run": {
+        "outcome": "CAUGHT",
+        "total_leaks": 3,
+        "overall_verdict": "LEAK_DETECTED",
+        "cross_tenant_leak": "yes",
+        "owner_access_lost": "no",
+        "control_passed": true,
+        "canary_integrity": "COMPROMISED",
+        "list_leak_check": "PASSED",
+        "attacks": [
+          {
+            "attack_name": "Cross-Tenant Create Injection: POST /documents (Body Reference)",
+            "category": "create_injection",
+            "method": "POST",
+            "target_path": "/documents",
+            "status_code": 201,
+            "outcome": "BLOCKED",
+            "data_leak_detected": false,
+            "leak_evidence": null,
+            "integrity_check": null,
+            "owner_access_lost": false,
+            "blocking_control": "TOKEN_TENANT_CONTEXT",
+            "description": "Tenant A attempts to inject a resource directly into Tenant B's workspace via /documents by spoofing tenant_id in payload, query, and headers.",
+            "create_injection_proof": {
+              "new_doc_id": "bcaf043e-875a-4e2a-a9d4-457996d874c1",
+              "assigned_tenant_id": "3a24c53b-bd40-45d5-8a73-a7150cb80a1a",
+              "attacker_tenant_id": "3a24c53b-bd40-45d5-8a73-a7150cb80a1a",
+              "target_tenant_id": "efaea642-1977-4d14-b4c0-ac5457e9c11a",
+              "new_doc_owned_by_attacker": true,
+              "new_doc_owned_by_target": false,
+              "visible_to_b_via_get": false,
+              "visible_to_b_via_list": false,
+              "visible_to_a": true,
+              "beta_canary_intact": true,
+              "beta_canary_status": "INTACT"
+            },
+            "observed_reason": "TOKEN_TENANT_CONTEXT"
+          },
+          {
+            "attack_name": "Cross-Tenant Read: GET /documents/{document_id}",
+            "category": "read",
+            "method": "GET",
+            "target_path": "/documents/473ca100-f5ff-4ff2-9d29-8dfab34a3cff",
+            "status_code": 404,
+            "outcome": "BLOCKED",
+            "data_leak_detected": false,
+            "leak_evidence": null,
+            "integrity_check": null,
+            "owner_access_lost": false,
+            "blocking_control": "unknown",
+            "description": "Tenant A attempts unauthorized GET on Tenant B's document_id via /documents/{document_id} (Get Tenant Document).",
+            "create_injection_proof": null,
+            "observed_reason": "RLS_FILTERED"
+          },
+          {
+            "attack_name": "Cross-Tenant Update: PUT /documents/{document_id}",
+            "category": "update",
+            "method": "PUT",
+            "target_path": "/documents/473ca100-f5ff-4ff2-9d29-8dfab34a3cff",
+            "status_code": 200,
+            "outcome": "LEAKED",
+            "data_leak_detected": false,
+            "leak_evidence": "Integrity violation on Tenant B resource: Document unreadable (status 404) and admin DB check failed: Document decryption failed: Ciphertext, nonce, or authenticated metadata verification failed.",
+            "integrity_check": {
+              "intact": false,
+              "status": "LEAKED",
+              "reason": "Document unreadable (status 404) and admin DB check failed: Document decryption failed: Ciphertext, nonce, or authenticated metadata verification failed."
+            },
+            "owner_access_lost": false,
+            "blocking_control": "none",
+            "description": "Tenant A attempts unauthorized PUT tampering with Tenant B's document_id via /documents/{document_id}.",
+            "create_injection_proof": null,
+            "observed_reason": "NONE"
+          },
+          {
+            "attack_name": "Cross-Tenant Delete: DELETE /documents/{document_id}",
+            "category": "delete",
+            "method": "DELETE",
+            "target_path": "/documents/473ca100-f5ff-4ff2-9d29-8dfab34a3cff",
+            "status_code": 204,
+            "outcome": "LEAKED",
+            "data_leak_detected": false,
+            "leak_evidence": "Integrity violation on Tenant B resource: Target document row 473ca100-f5ff-4ff2-9d29-8dfab34a3cff does not exist in database",
+            "integrity_check": {
+              "intact": false,
+              "status": "LEAKED",
+              "reason": "Target document row 473ca100-f5ff-4ff2-9d29-8dfab34a3cff does not exist in database",
+              "admin_verification": {
+                "exists": false,
+                "unchanged": false,
+                "title_matches": false,
+                "content_matches": false,
+                "reason": "Target document row 473ca100-f5ff-4ff2-9d29-8dfab34a3cff does not exist in database"
+              }
+            },
+            "owner_access_lost": false,
+            "blocking_control": "none",
+            "description": "Tenant A attempts unauthorized destruction of Tenant B's document_id via /documents/{document_id}.",
+            "create_injection_proof": null,
+            "observed_reason": "NONE"
+          },
+          {
+            "attack_name": "Cross-Tenant Action: POST /admin/keys/{tenant_id}/rotate",
+            "category": "action",
+            "method": "POST",
+            "target_path": "/admin/keys/efaea642-1977-4d14-b4c0-ac5457e9c11a/rotate",
+            "status_code": 403,
+            "outcome": "BLOCKED",
+            "data_leak_detected": false,
+            "leak_evidence": null,
+            "integrity_check": null,
+            "owner_access_lost": false,
+            "blocking_control": "ROLE_CHECK",
+            "description": "Tenant A attempts unauthorized management action on Tenant B's tenant_id via /admin/keys/{tenant_id}/rotate.",
+            "create_injection_proof": null,
+            "observed_reason": "ROLE_CHECK"
+          },
+          {
+            "attack_name": "Cross-Tenant Action: POST /admin/keys/{tenant_id}/shred",
+            "category": "action",
+            "method": "POST",
+            "target_path": "/admin/keys/efaea642-1977-4d14-b4c0-ac5457e9c11a/shred",
+            "status_code": 403,
+            "outcome": "BLOCKED",
+            "data_leak_detected": false,
+            "leak_evidence": null,
+            "integrity_check": null,
+            "owner_access_lost": false,
+            "blocking_control": "ROLE_CHECK",
+            "description": "Tenant A attempts unauthorized management action on Tenant B's tenant_id via /admin/keys/{tenant_id}/shred.",
+            "create_injection_proof": null,
+            "observed_reason": "ROLE_CHECK"
+          },
+          {
+            "attack_name": "Cross-Tenant Create Injection: POST /admin/limiter/strategy (Body Reference)",
+            "category": "create_injection",
+            "method": "POST",
+            "target_path": "/admin/limiter/strategy",
+            "status_code": 403,
+            "outcome": "BLOCKED",
+            "data_leak_detected": false,
+            "leak_evidence": null,
+            "integrity_check": null,
+            "owner_access_lost": false,
+            "blocking_control": "ROLE_CHECK",
+            "description": "Tenant A attempts to inject a resource directly into Tenant B's workspace via /admin/limiter/strategy by spoofing tenant_id in payload, query, and headers.",
+            "create_injection_proof": null,
+            "observed_reason": "ROLE_CHECK"
+          },
+          {
+            "attack_name": "Cross-Tenant Read: GET /admin/dashboard/run-status/{run_id}",
+            "category": "read",
+            "method": "GET",
+            "target_path": "/admin/dashboard/run-status/473ca100-f5ff-4ff2-9d29-8dfab34a3cff",
+            "status_code": 403,
+            "outcome": "BLOCKED",
+            "data_leak_detected": false,
+            "leak_evidence": null,
+            "integrity_check": null,
+            "owner_access_lost": false,
+            "blocking_control": "ROLE_CHECK",
+            "description": "Tenant A attempts unauthorized GET on Tenant B's run_id via /admin/dashboard/run-status/{run_id} (Check Verification Run Status).",
+            "create_injection_proof": null,
+            "observed_reason": "ROLE_CHECK"
+          }
+        ]
+      },
+      "masked_run": {
+        "leak_detected": false,
+        "total_leaks": 0,
+        "overall_verdict": "NO_LEAK_DETECTED",
+        "cross_tenant_leak": "no",
+        "owner_access_lost": "no",
+        "masked_by_other_layers": true,
+        "control_passed": true,
+        "canary_integrity": "INTACT"
+      },
+      "evidence": {
+        "current_user": "postgres",
+        "relrowsecurity": false,
+        "relforcerowsecurity": false,
+        "policies": [
+          {
+            "policyname": "tenant_isolation_policy",
+            "cmd": "ALL",
+            "roles": "{public}",
+            "qual": "(tenant_id = (NULLIF(current_setting('app.current_tenant_id'::text, true), ''::text))::uuid)",
+            "with_check": "(tenant_id = (NULLIF(current_setting('app.current_tenant_id'::text, true), ''::text))::uuid)"
+          }
+        ],
+        "role_attributes": {
+          "postgres": {
+            "rolsuper": true,
+            "rolbypassrls": true,
+            "rolinherit": true
+          },
+          "tenantshield_app": {
+            "rolsuper": false,
+            "rolbypassrls": false,
+            "rolinherit": true
+          }
+        },
+        "total_documents": 1,
+        "documents_per_tenant": {
+          "3a24c53b-bd40-45d5-8a73-a7150cb80a1a": 1
+        }
+      },
+      "uncontextualized_test": null,
+      "baseline_restored": true
+    },
+    {
+      "mutation_id": "mut_4_bypassrls_role",
+      "name": "Mutation 4: Application connecting as role with BYPASSRLS",
+      "description": "Application connects using a database role granted the BYPASSRLS privilege.",
+      "mutated_layer": "Layer B Bypass (PostgreSQL Role Privilege)",
+      "detection_method": "ATTACK_SUITE",
+      "isolated_outcome": "CAUGHT",
+      "cross_tenant_leak": "no",
+      "owner_access_lost": "no",
+      "isolated_run": {
+        "outcome": "CAUGHT",
+        "total_leaks": 3,
+        "overall_verdict": "LEAK_DETECTED",
+        "cross_tenant_leak": "yes",
+        "owner_access_lost": "no",
+        "control_passed": true,
+        "canary_integrity": "COMPROMISED",
+        "list_leak_check": "PASSED",
+        "attacks": [
+          {
+            "attack_name": "Cross-Tenant Create Injection: POST /documents (Body Reference)",
+            "category": "create_injection",
+            "method": "POST",
+            "target_path": "/documents",
+            "status_code": 201,
+            "outcome": "BLOCKED",
+            "data_leak_detected": false,
+            "leak_evidence": null,
+            "integrity_check": null,
+            "owner_access_lost": false,
+            "blocking_control": "TOKEN_TENANT_CONTEXT",
+            "description": "Tenant A attempts to inject a resource directly into Tenant B's workspace via /documents by spoofing tenant_id in payload, query, and headers.",
+            "create_injection_proof": {
+              "new_doc_id": "6ed18359-0e95-45af-99d6-cfdde80fecff",
+              "assigned_tenant_id": "804219c5-f1ea-4e89-9fc7-c49aabde6c55",
+              "attacker_tenant_id": "804219c5-f1ea-4e89-9fc7-c49aabde6c55",
+              "target_tenant_id": "3a472d85-de60-4c2b-a8af-0b2bd97069ae",
+              "new_doc_owned_by_attacker": true,
+              "new_doc_owned_by_target": false,
+              "visible_to_b_via_get": false,
+              "visible_to_b_via_list": false,
+              "visible_to_a": true,
+              "beta_canary_intact": true,
+              "beta_canary_status": "INTACT"
+            },
+            "observed_reason": "TOKEN_TENANT_CONTEXT"
+          },
+          {
+            "attack_name": "Cross-Tenant Read: GET /documents/{document_id}",
+            "category": "read",
+            "method": "GET",
+            "target_path": "/documents/57767fab-9696-4350-a45d-4d83ea5c14d7",
+            "status_code": 404,
+            "outcome": "BLOCKED",
+            "data_leak_detected": false,
+            "leak_evidence": null,
+            "integrity_check": null,
+            "owner_access_lost": false,
+            "blocking_control": "unknown",
+            "description": "Tenant A attempts unauthorized GET on Tenant B's document_id via /documents/{document_id} (Get Tenant Document).",
+            "create_injection_proof": null,
+            "observed_reason": "RLS_FILTERED"
+          },
+          {
+            "attack_name": "Cross-Tenant Update: PUT /documents/{document_id}",
+            "category": "update",
+            "method": "PUT",
+            "target_path": "/documents/57767fab-9696-4350-a45d-4d83ea5c14d7",
+            "status_code": 200,
+            "outcome": "LEAKED",
+            "data_leak_detected": false,
+            "leak_evidence": "Integrity violation on Tenant B resource: Document unreadable (status 404) and admin DB check failed: Document decryption failed: Ciphertext, nonce, or authenticated metadata verification failed.",
+            "integrity_check": {
+              "intact": false,
+              "status": "LEAKED",
+              "reason": "Document unreadable (status 404) and admin DB check failed: Document decryption failed: Ciphertext, nonce, or authenticated metadata verification failed."
+            },
+            "owner_access_lost": false,
+            "blocking_control": "none",
+            "description": "Tenant A attempts unauthorized PUT tampering with Tenant B's document_id via /documents/{document_id}.",
+            "create_injection_proof": null,
+            "observed_reason": "NONE"
+          },
+          {
+            "attack_name": "Cross-Tenant Delete: DELETE /documents/{document_id}",
+            "category": "delete",
+            "method": "DELETE",
+            "target_path": "/documents/57767fab-9696-4350-a45d-4d83ea5c14d7",
+            "status_code": 204,
+            "outcome": "LEAKED",
+            "data_leak_detected": false,
+            "leak_evidence": "Integrity violation on Tenant B resource: Target document row 57767fab-9696-4350-a45d-4d83ea5c14d7 does not exist in database",
+            "integrity_check": {
+              "intact": false,
+              "status": "LEAKED",
+              "reason": "Target document row 57767fab-9696-4350-a45d-4d83ea5c14d7 does not exist in database",
+              "admin_verification": {
+                "exists": false,
+                "unchanged": false,
+                "title_matches": false,
+                "content_matches": false,
+                "reason": "Target document row 57767fab-9696-4350-a45d-4d83ea5c14d7 does not exist in database"
+              }
+            },
+            "owner_access_lost": false,
+            "blocking_control": "none",
+            "description": "Tenant A attempts unauthorized destruction of Tenant B's document_id via /documents/{document_id}.",
+            "create_injection_proof": null,
+            "observed_reason": "NONE"
+          },
+          {
+            "attack_name": "Cross-Tenant Action: POST /admin/keys/{tenant_id}/rotate",
+            "category": "action",
+            "method": "POST",
+            "target_path": "/admin/keys/3a472d85-de60-4c2b-a8af-0b2bd97069ae/rotate",
+            "status_code": 403,
+            "outcome": "BLOCKED",
+            "data_leak_detected": false,
+            "leak_evidence": null,
+            "integrity_check": null,
+            "owner_access_lost": false,
+            "blocking_control": "ROLE_CHECK",
+            "description": "Tenant A attempts unauthorized management action on Tenant B's tenant_id via /admin/keys/{tenant_id}/rotate.",
+            "create_injection_proof": null,
+            "observed_reason": "ROLE_CHECK"
+          },
+          {
+            "attack_name": "Cross-Tenant Action: POST /admin/keys/{tenant_id}/shred",
+            "category": "action",
+            "method": "POST",
+            "target_path": "/admin/keys/3a472d85-de60-4c2b-a8af-0b2bd97069ae/shred",
+            "status_code": 403,
+            "outcome": "BLOCKED",
+            "data_leak_detected": false,
+            "leak_evidence": null,
+            "integrity_check": null,
+            "owner_access_lost": false,
+            "blocking_control": "ROLE_CHECK",
+            "description": "Tenant A attempts unauthorized management action on Tenant B's tenant_id via /admin/keys/{tenant_id}/shred.",
+            "create_injection_proof": null,
+            "observed_reason": "ROLE_CHECK"
+          },
+          {
+            "attack_name": "Cross-Tenant Create Injection: POST /admin/limiter/strategy (Body Reference)",
+            "category": "create_injection",
+            "method": "POST",
+            "target_path": "/admin/limiter/strategy",
+            "status_code": 403,
+            "outcome": "BLOCKED",
+            "data_leak_detected": false,
+            "leak_evidence": null,
+            "integrity_check": null,
+            "owner_access_lost": false,
+            "blocking_control": "ROLE_CHECK",
+            "description": "Tenant A attempts to inject a resource directly into Tenant B's workspace via /admin/limiter/strategy by spoofing tenant_id in payload, query, and headers.",
+            "create_injection_proof": null,
+            "observed_reason": "ROLE_CHECK"
+          },
+          {
+            "attack_name": "Cross-Tenant Read: GET /admin/dashboard/run-status/{run_id}",
+            "category": "read",
+            "method": "GET",
+            "target_path": "/admin/dashboard/run-status/57767fab-9696-4350-a45d-4d83ea5c14d7",
+            "status_code": 403,
+            "outcome": "BLOCKED",
+            "data_leak_detected": false,
+            "leak_evidence": null,
+            "integrity_check": null,
+            "owner_access_lost": false,
+            "blocking_control": "ROLE_CHECK",
+            "description": "Tenant A attempts unauthorized GET on Tenant B's run_id via /admin/dashboard/run-status/{run_id} (Check Verification Run Status).",
+            "create_injection_proof": null,
+            "observed_reason": "ROLE_CHECK"
+          }
+        ]
+      },
+      "masked_run": {
+        "leak_detected": false,
+        "total_leaks": 0,
+        "overall_verdict": "NO_LEAK_DETECTED",
+        "cross_tenant_leak": "no",
+        "owner_access_lost": "no",
+        "masked_by_other_layers": true,
+        "control_passed": true,
+        "canary_integrity": "INTACT"
+      },
+      "evidence": {
+        "current_user": "postgres",
+        "relrowsecurity": true,
+        "relforcerowsecurity": true,
+        "policies": [
+          {
+            "policyname": "tenant_isolation_policy",
+            "cmd": "ALL",
+            "roles": "{public}",
+            "qual": "(tenant_id = (NULLIF(current_setting('app.current_tenant_id'::text, true), ''::text))::uuid)",
+            "with_check": "(tenant_id = (NULLIF(current_setting('app.current_tenant_id'::text, true), ''::text))::uuid)"
+          }
+        ],
+        "role_attributes": {
+          "postgres": {
+            "rolsuper": true,
+            "rolbypassrls": true,
+            "rolinherit": true
+          },
+          "tenantshield_app": {
+            "rolsuper": false,
+            "rolbypassrls": false,
+            "rolinherit": true
+          },
+          "tenantshield_lab_bypass": {
+            "rolsuper": false,
+            "rolbypassrls": true,
+            "rolinherit": true
+          }
+        },
+        "total_documents": 1,
+        "documents_per_tenant": {
+          "804219c5-f1ea-4e89-9fc7-c49aabde6c55": 1
+        }
+      },
+      "uncontextualized_test": null,
+      "baseline_restored": true
+    },
+    {
+      "mutation_id": "mut_5_connection_pool_leakage",
+      "name": "Mutation 5: Tenant context leaking through connection pooling",
+      "description": "Tenant context set at session level (is_local=false) with pool_size=1, leaking context across checkouts.",
+      "mutated_layer": "Session Management & Connection Pooling",
+      "detection_method": "DEDICATED_PROBE",
+      "isolated_outcome": "CAUGHT",
+      "cross_tenant_leak": "no",
+      "owner_access_lost": "no",
+      "isolated_run": {
+        "outcome": "CAUGHT",
+        "total_leaks": 0,
+        "overall_verdict": "NO_LEAK_DETECTED",
+        "cross_tenant_leak": "yes",
+        "owner_access_lost": "no",
+        "control_passed": true,
+        "canary_integrity": "INTACT",
+        "list_leak_check": "PASSED",
+        "attacks": [
+          {
+            "attack_name": "Cross-Tenant Create Injection: POST /documents (Body Reference)",
+            "category": "create_injection",
+            "method": "POST",
+            "target_path": "/documents",
+            "status_code": 201,
+            "outcome": "BLOCKED",
+            "data_leak_detected": false,
+            "leak_evidence": null,
+            "integrity_check": null,
+            "owner_access_lost": false,
+            "blocking_control": "TOKEN_TENANT_CONTEXT",
+            "description": "Tenant A attempts to inject a resource directly into Tenant B's workspace via /documents by spoofing tenant_id in payload, query, and headers.",
+            "create_injection_proof": {
+              "new_doc_id": "b149f554-b385-491c-89f8-f9d479f1f87d",
+              "assigned_tenant_id": "32d338c8-4893-45fd-9c16-7ea91d08b89f",
+              "attacker_tenant_id": "32d338c8-4893-45fd-9c16-7ea91d08b89f",
+              "target_tenant_id": "39b0a570-c6a4-483c-9c07-773483deb9c7",
+              "new_doc_owned_by_attacker": true,
+              "new_doc_owned_by_target": false,
+              "visible_to_b_via_get": false,
+              "visible_to_b_via_list": false,
+              "visible_to_a": true,
+              "beta_canary_intact": true,
+              "beta_canary_status": "INTACT"
+            },
+            "observed_reason": "TOKEN_TENANT_CONTEXT"
+          },
+          {
+            "attack_name": "Cross-Tenant Read: GET /documents/{document_id}",
+            "category": "read",
+            "method": "GET",
+            "target_path": "/documents/0a4d12c1-7fec-4b6f-8096-a554ee8a9071",
+            "status_code": 404,
+            "outcome": "BLOCKED",
+            "data_leak_detected": false,
+            "leak_evidence": null,
+            "integrity_check": null,
+            "owner_access_lost": false,
+            "blocking_control": "unknown",
+            "description": "Tenant A attempts unauthorized GET on Tenant B's document_id via /documents/{document_id} (Get Tenant Document).",
+            "create_injection_proof": null,
+            "observed_reason": "RLS_FILTERED"
+          },
+          {
+            "attack_name": "Cross-Tenant Update: PUT /documents/{document_id}",
+            "category": "update",
+            "method": "PUT",
+            "target_path": "/documents/0a4d12c1-7fec-4b6f-8096-a554ee8a9071",
+            "status_code": 404,
+            "outcome": "BLOCKED",
+            "data_leak_detected": false,
+            "leak_evidence": null,
+            "integrity_check": {
+              "intact": true,
+              "status": "INTACT",
+              "reason": "Document content and title unaltered"
+            },
+            "owner_access_lost": false,
+            "blocking_control": "unknown",
+            "description": "Tenant A attempts unauthorized PUT tampering with Tenant B's document_id via /documents/{document_id}.",
+            "create_injection_proof": null,
+            "observed_reason": "RLS_FILTERED"
+          },
+          {
+            "attack_name": "Cross-Tenant Delete: DELETE /documents/{document_id}",
+            "category": "delete",
+            "method": "DELETE",
+            "target_path": "/documents/0a4d12c1-7fec-4b6f-8096-a554ee8a9071",
+            "status_code": 404,
+            "outcome": "BLOCKED",
+            "data_leak_detected": false,
+            "leak_evidence": null,
+            "integrity_check": {
+              "intact": true,
+              "status": "INTACT",
+              "reason": "Document content and title unaltered"
+            },
+            "owner_access_lost": false,
+            "blocking_control": "unknown",
+            "description": "Tenant A attempts unauthorized destruction of Tenant B's document_id via /documents/{document_id}.",
+            "create_injection_proof": null,
+            "observed_reason": "RLS_FILTERED"
+          },
+          {
+            "attack_name": "Cross-Tenant Action: POST /admin/keys/{tenant_id}/rotate",
+            "category": "action",
+            "method": "POST",
+            "target_path": "/admin/keys/39b0a570-c6a4-483c-9c07-773483deb9c7/rotate",
+            "status_code": 403,
+            "outcome": "BLOCKED",
+            "data_leak_detected": false,
+            "leak_evidence": null,
+            "integrity_check": null,
+            "owner_access_lost": false,
+            "blocking_control": "ROLE_CHECK",
+            "description": "Tenant A attempts unauthorized management action on Tenant B's tenant_id via /admin/keys/{tenant_id}/rotate.",
+            "create_injection_proof": null,
+            "observed_reason": "ROLE_CHECK"
+          },
+          {
+            "attack_name": "Cross-Tenant Action: POST /admin/keys/{tenant_id}/shred",
+            "category": "action",
+            "method": "POST",
+            "target_path": "/admin/keys/39b0a570-c6a4-483c-9c07-773483deb9c7/shred",
+            "status_code": 403,
+            "outcome": "BLOCKED",
+            "data_leak_detected": false,
+            "leak_evidence": null,
+            "integrity_check": null,
+            "owner_access_lost": false,
+            "blocking_control": "ROLE_CHECK",
+            "description": "Tenant A attempts unauthorized management action on Tenant B's tenant_id via /admin/keys/{tenant_id}/shred.",
+            "create_injection_proof": null,
+            "observed_reason": "ROLE_CHECK"
+          },
+          {
+            "attack_name": "Cross-Tenant Create Injection: POST /admin/limiter/strategy (Body Reference)",
+            "category": "create_injection",
+            "method": "POST",
+            "target_path": "/admin/limiter/strategy",
+            "status_code": 403,
+            "outcome": "BLOCKED",
+            "data_leak_detected": false,
+            "leak_evidence": null,
+            "integrity_check": null,
+            "owner_access_lost": false,
+            "blocking_control": "ROLE_CHECK",
+            "description": "Tenant A attempts to inject a resource directly into Tenant B's workspace via /admin/limiter/strategy by spoofing tenant_id in payload, query, and headers.",
+            "create_injection_proof": null,
+            "observed_reason": "ROLE_CHECK"
+          },
+          {
+            "attack_name": "Cross-Tenant Read: GET /admin/dashboard/run-status/{run_id}",
+            "category": "read",
+            "method": "GET",
+            "target_path": "/admin/dashboard/run-status/0a4d12c1-7fec-4b6f-8096-a554ee8a9071",
+            "status_code": 403,
+            "outcome": "BLOCKED",
+            "data_leak_detected": false,
+            "leak_evidence": null,
+            "integrity_check": null,
+            "owner_access_lost": false,
+            "blocking_control": "ROLE_CHECK",
+            "description": "Tenant A attempts unauthorized GET on Tenant B's run_id via /admin/dashboard/run-status/{run_id} (Check Verification Run Status).",
+            "create_injection_proof": null,
+            "observed_reason": "ROLE_CHECK"
+          }
+        ]
+      },
+      "masked_run": {
+        "leak_detected": false,
+        "total_leaks": 0,
+        "overall_verdict": "NO_LEAK_DETECTED",
+        "cross_tenant_leak": "no",
+        "owner_access_lost": "no",
+        "masked_by_other_layers": true,
+        "control_passed": true,
+        "canary_integrity": "INTACT"
+      },
+      "evidence": {
+        "current_user": "postgres",
+        "relrowsecurity": true,
+        "relforcerowsecurity": true,
+        "policies": [
+          {
+            "policyname": "tenant_isolation_policy",
+            "cmd": "ALL",
+            "roles": "{public}",
+            "qual": "(tenant_id = (NULLIF(current_setting('app.current_tenant_id'::text, true), ''::text))::uuid)",
+            "with_check": "(tenant_id = (NULLIF(current_setting('app.current_tenant_id'::text, true), ''::text))::uuid)"
+          }
+        ],
+        "role_attributes": {
+          "postgres": {
+            "rolsuper": true,
+            "rolbypassrls": true,
+            "rolinherit": true
+          },
+          "tenantshield_app": {
+            "rolsuper": false,
+            "rolbypassrls": false,
+            "rolinherit": true
+          }
+        },
+        "total_documents": 3,
+        "documents_per_tenant": {
+          "32d338c8-4893-45fd-9c16-7ea91d08b89f": 1,
+          "39b0a570-c6a4-483c-9c07-773483deb9c7": 2
+        }
+      },
+      "uncontextualized_test": {
+        "test_name": "Uncontextualized Connection Pool Leak Test",
+        "context_leaked": true,
+        "target_tenant_id": "39b0a570-c6a4-483c-9c07-773483deb9c7",
+        "rows_returned_count": 1,
+        "rows_returned": [
+          {
+            "id": "25c5141e-6956-45e1-b2aa-0e7491b2ef96",
+            "tenant_id": "39b0a570-c6a4-483c-9c07-773483deb9c7",
+            "title": "Beta Pool Canary Doc"
+          }
+        ]
+      },
+      "baseline_restored": true
+    }
+  ]
+}
