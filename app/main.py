@@ -18,6 +18,7 @@ from app.api.dashboard import router as dashboard_router
 from app.api.documents import router as documents_router
 from app.api.routes import router as system_router
 from app.api.runs import router as runs_router
+from app.api.demo import router as demo_router
 from app.core.config import settings
 from app.core.database import engine
 from app.services.metrics import MetricsService
@@ -138,6 +139,7 @@ def create_application() -> FastAPI:
     app.include_router(admin_router)
     app.include_router(dashboard_router)
     app.include_router(runs_router)
+    app.include_router(demo_router)
 
     # Mount UI static files
     from pathlib import Path

@@ -410,7 +410,7 @@
       adminDashboard.style.display = 'block';
 
       var slug = hash.replace(/^#admin\/?/, '').replace(/^#/, '');
-      var validSlugs = ['verification', 'layer-kill', 'mutation', 'noisy-neighbour', 'metrics', 'keys', 'glossary'];
+      var validSlugs = ['verification', 'layer-kill', 'mutation', 'noisy-neighbour', 'metrics', 'keys', 'demo', 'glossary'];
       if (validSlugs.indexOf(slug) === -1) {
         slug = 'verification';
       }
@@ -1032,6 +1032,7 @@
       { id: 'section-noisy-neighbour', slug: 'noisy-neighbour', label: 'Noisy neighbour' },
       { id: 'section-metrics', slug: 'metrics', label: 'Tenant metrics' },
       { id: 'section-keys', slug: 'keys', label: 'Tenant keys' },
+      { id: 'section-demo', slug: 'demo', label: 'Key lifecycle demo' },
       { id: 'section-glossary', slug: 'glossary', label: 'Glossary' }
     ];
 
@@ -1129,6 +1130,7 @@
     loadNoisyNeighbourSection();
     loadMetricsSection();
     loadKeysSection();
+    setupKeyLifecycleDemo();
     loadGlossarySection();
     setupHowItWorksToggles();
     setupStaticGlossaryButtons();
@@ -1589,7 +1591,7 @@
           trEmpty.appendChild(tdTId);
 
           var tdNoKey = document.createElement('td');
-          tdNoKey.colSpan = 5;
+          tdNoKey.colSpan = 6;
           tdNoKey.style.color = 'var(--text-muted)';
           tdNoKey.textContent = 'No keys provisioned';
           trEmpty.appendChild(tdNoKey);
@@ -1645,6 +1647,50 @@
           }
           tr.appendChild(tdDes);
 
+          // Actions cell with Rotate key button
+          var tdAct = document.createElement('td');
+          if (keyItem.status === 'active') {
+            var rotBtn = document.createElement('button');
+            rotBtn.type = 'button';
+            rotBtn.className = 'btn btn-sm';
+            rotBtn.textContent = 'Rotate key';
+            rotBtn.addEventListener('click', (function (tenantId, tenantName, kVer) {
+              return async function () {
+                var confirmed = window.confirm(
+                  'Are you sure you want to rotate the active key for ' +
+                    tenantName +
+                    ' (current version ' +
+                    kVer +
+                    ')? This will provision key version ' +
+                    (kVer + 1) +
+                    '.'
+                );
+                if (!confirmed) return;
+
+                rotBtn.disabled = true;
+                rotBtn.textContent = 'Rotating...';
+                try {
+                  var rRes = await apiFetch('/admin/keys/' + tenantId + '/rotate', {
+                    method: 'POST'
+                  });
+                  if (!rRes.ok) {
+                    var errD = await rRes.json();
+                    throw new Error(errD.detail || 'Key rotation failed.');
+                  }
+                  await loadKeysSection();
+                } catch (rErr) {
+                  alert(rErr.message || 'Key rotation failed.');
+                  rotBtn.disabled = false;
+                  rotBtn.textContent = 'Rotate key';
+                }
+              };
+            })(t.tenant_id, t.tenant_name, keyItem.key_version));
+            tdAct.appendChild(rotBtn);
+          } else {
+            tdAct.textContent = '—';
+          }
+          tr.appendChild(tdAct);
+
           tbody.appendChild(tr);
         }
       }
@@ -1652,6 +1698,190 @@
       contentEl.style.display = 'none';
       emptyEl.style.display = 'block';
     }
+  }
+
+  // 7. Key Lifecycle Demo Controller
+  function setupKeyLifecycleDemo() {
+    var step1Btn = document.getElementById('btn-demo-step-1');
+    var res1Box = document.getElementById('demo-result-1');
+
+    var step2Btn = document.getElementById('btn-demo-step-2');
+    var res2Box = document.getElementById('demo-result-2');
+
+    var step3Btn = document.getElementById('btn-demo-step-3');
+    var res3Box = document.getElementById('demo-result-3');
+
+    var step4Btn = document.getElementById('btn-demo-step-4');
+    var res4Box = document.getElementById('demo-result-4');
+
+    var step5Btn = document.getElementById('btn-demo-step-5');
+    var confirmInput = document.getElementById('input-demo-destroy-confirm');
+    var res5Box = document.getElementById('demo-result-5');
+
+    var step6Btn = document.getElementById('btn-demo-step-6');
+    var res6Box = document.getElementById('demo-result-6');
+
+    var step7Btn = document.getElementById('btn-demo-step-7');
+    var res7Box = document.getElementById('demo-result-7');
+
+    if (!step1Btn || step1Btn.getAttribute('data-bound')) return;
+    step1Btn.setAttribute('data-bound', 'true');
+
+    // Step 1: Create before document
+    step1Btn.addEventListener('click', async function () {
+      step1Btn.disabled = true;
+      res1Box.textContent = 'Creating document under active key...';
+      try {
+        var res = await apiFetch('/admin/demo/keys/create-document', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ label: 'before' })
+        });
+        var data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Failed to create document.');
+        res1Box.textContent = 'Created: doc ' + data.document_id + '\nLabel: ' + data.label + '\nKey version: ' + data.key_version;
+        await loadKeysSection();
+      } catch (err) {
+        res1Box.textContent = 'Error: ' + err.message;
+      } finally {
+        step1Btn.disabled = false;
+      }
+    });
+
+    // Step 2: Rotate key
+    step2Btn.addEventListener('click', async function () {
+      step2Btn.disabled = true;
+      res2Box.textContent = 'Rotating Demo Co active key...';
+      try {
+        var res = await apiFetch('/admin/demo/keys/rotate', {
+          method: 'POST'
+        });
+        var data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Failed to rotate key.');
+        res2Box.textContent = 'Rotated successfully.\nNew active key version: ' + data.new_key_version;
+        await loadKeysSection();
+      } catch (err) {
+        res2Box.textContent = 'Error: ' + err.message;
+      } finally {
+        step2Btn.disabled = false;
+      }
+    });
+
+    // Step 3: Create after document
+    step3Btn.addEventListener('click', async function () {
+      step3Btn.disabled = true;
+      res3Box.textContent = 'Creating document under rotated key...';
+      try {
+        var res = await apiFetch('/admin/demo/keys/create-document', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ label: 'after' })
+        });
+        var data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Failed to create document.');
+        res3Box.textContent = 'Created: doc ' + data.document_id + '\nLabel: ' + data.label + '\nKey version: ' + data.key_version;
+        await loadKeysSection();
+      } catch (err) {
+        res3Box.textContent = 'Error: ' + err.message;
+      } finally {
+        step3Btn.disabled = false;
+      }
+    });
+
+    // Step 4: Read both documents
+    step4Btn.addEventListener('click', async function () {
+      step4Btn.disabled = true;
+      res4Box.textContent = 'Decrypting all Demo Co documents...';
+      try {
+        var res = await apiFetch('/admin/demo/keys/read', {
+          method: 'POST'
+        });
+        var data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Failed to read documents.');
+        var lines = ['Total documents: ' + (data.total_documents || 0)];
+        var docs = data.documents || [];
+        for (var i = 0; i < docs.length; i++) {
+          lines.push('[' + docs[i].label + '] v' + docs[i].key_version + ': ' + docs[i].status + (docs[i].reason ? ' (' + docs[i].reason + ')' : ''));
+        }
+        res4Box.textContent = lines.join('\n');
+        await loadKeysSection();
+      } catch (err) {
+        res4Box.textContent = 'Error: ' + err.message;
+      } finally {
+        step4Btn.disabled = false;
+      }
+    });
+
+    // Step 5: Destroy key
+    step5Btn.addEventListener('click', async function () {
+      var typedVal = (confirmInput.value || '').trim();
+      if (typedVal !== 'DESTROY') {
+        alert('Confirmation required: Type DESTROY into the box to confirm crypto-shredding.');
+        return;
+      }
+
+      step5Btn.disabled = true;
+      res5Box.textContent = 'Crypto-shredding Demo Co keys...';
+      try {
+        var res = await apiFetch('/admin/demo/keys/destroy', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ confirm: 'DESTROY' })
+        });
+        var data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Failed to destroy key.');
+        res5Box.textContent = 'Destroyed permanently.\nKeys shredded: ' + data.keys_shredded;
+        confirmInput.value = '';
+        await loadKeysSection();
+      } catch (err) {
+        res5Box.textContent = 'Error: ' + err.message;
+      } finally {
+        step5Btn.disabled = false;
+      }
+    });
+
+    // Step 6: Read both documents again
+    step6Btn.addEventListener('click', async function () {
+      step6Btn.disabled = true;
+      res6Box.textContent = 'Attempting decryption post-shredding...';
+      try {
+        var res = await apiFetch('/admin/demo/keys/read', {
+          method: 'POST'
+        });
+        var data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Failed to read documents.');
+        var lines = ['Decryption test results:'];
+        var docs = data.documents || [];
+        for (var i = 0; i < docs.length; i++) {
+          lines.push('[' + docs[i].label + '] v' + docs[i].key_version + ': ' + docs[i].status + (docs[i].reason ? ' (' + docs[i].reason + ')' : ''));
+        }
+        res6Box.textContent = lines.join('\n');
+        await loadKeysSection();
+      } catch (err) {
+        res6Box.textContent = 'Error: ' + err.message;
+      } finally {
+        step6Btn.disabled = false;
+      }
+    });
+
+    // Step 7: Read Acme document
+    step7Btn.addEventListener('click', async function () {
+      step7Btn.disabled = true;
+      res7Box.textContent = 'Verifying Acme document in Acme context...';
+      try {
+        var res = await apiFetch('/admin/demo/keys/read-other', {
+          method: 'POST'
+        });
+        var data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Failed to read Acme document.');
+        res7Box.textContent = 'Target Tenant: ' + data.target_tenant + '\nDecryption Outcome: ' + data.status + '\nIsolation: Intact (unaffected)';
+        await loadKeysSection();
+      } catch (err) {
+        res7Box.textContent = 'Error: ' + err.message;
+      } finally {
+        step7Btn.disabled = false;
+      }
+    });
   }
 
   // =========================================================================

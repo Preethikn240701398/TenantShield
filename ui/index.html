@@ -418,6 +418,7 @@
                     <th>Created</th>
                     <th data-glossary="retired">Retired</th>
                     <th data-glossary="destroyed">Destroyed</th>
+                    <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody id="keys-table-body">
@@ -426,6 +427,100 @@
               </table>
             </div>
             <p class="experiment-note">Zero key material, nonces, or ciphertext are exposed.</p>
+          </div>
+        </section>
+
+        <!-- Key Lifecycle Demo Section -->
+        <section class="dashboard-section" id="section-demo">
+          <div class="section-header">
+            <h2>Key lifecycle demo</h2>
+            <span class="text-small">Interactive demonstration of envelope encryption, rotation, and crypto-shredding</span>
+          </div>
+          <div class="demo-page-note" style="margin-bottom: 16px; padding: 12px 16px; background: rgba(56, 189, 248, 0.08); border-left: 3px solid var(--accent); border-radius: var(--radius); font-size: 13px; color: var(--text-main);">
+            Demo Co is a dedicated demo tenant. Destroying its key is permanent; run scripts/seed_demo_tenant.py to reset.
+          </div>
+          <hr>
+
+          <div class="demo-steps-container" style="display: flex; flex-direction: column; gap: 16px;">
+            <!-- Step 1 -->
+            <div class="demo-step-card" style="background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius); padding: 16px; display: flex; align-items: flex-start; gap: 16px;">
+              <div style="font-weight: 700; font-size: 16px; color: var(--accent); min-width: 24px;">1.</div>
+              <div style="flex: 1;">
+                <div style="font-weight: 600; margin-bottom: 4px;">Create "before" document</div>
+                <div style="font-size: 13px; color: var(--text-muted); margin-bottom: 8px;">Creates a confidential document encrypted under Demo Co's initial active key version.</div>
+                <button type="button" class="btn btn-primary btn-sm" id="btn-demo-step-1">1. Create before document</button>
+              </div>
+              <div id="demo-result-1" class="demo-result-box" style="flex: 1; font-family: var(--font-mono); font-size: 12px; color: var(--text-muted); background: var(--bg-base); padding: 8px 12px; border-radius: var(--radius); min-height: 36px; white-space: pre-wrap;">Ready</div>
+            </div>
+
+            <!-- Step 2 -->
+            <div class="demo-step-card" style="background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius); padding: 16px; display: flex; align-items: flex-start; gap: 16px;">
+              <div style="font-weight: 700; font-size: 16px; color: var(--accent); min-width: 24px;">2.</div>
+              <div style="flex: 1;">
+                <div style="font-weight: 600; margin-bottom: 4px;">Rotate key</div>
+                <div style="font-size: 13px; color: var(--text-muted); margin-bottom: 8px;">Retires the initial key version and provisions a new active key version (N+1).</div>
+                <button type="button" class="btn btn-primary btn-sm" id="btn-demo-step-2">2. Rotate key</button>
+              </div>
+              <div id="demo-result-2" class="demo-result-box" style="flex: 1; font-family: var(--font-mono); font-size: 12px; color: var(--text-muted); background: var(--bg-base); padding: 8px 12px; border-radius: var(--radius); min-height: 36px; white-space: pre-wrap;">Ready</div>
+            </div>
+
+            <!-- Step 3 -->
+            <div class="demo-step-card" style="background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius); padding: 16px; display: flex; align-items: flex-start; gap: 16px;">
+              <div style="font-weight: 700; font-size: 16px; color: var(--accent); min-width: 24px;">3.</div>
+              <div style="flex: 1;">
+                <div style="font-weight: 600; margin-bottom: 4px;">Create "after" document</div>
+                <div style="font-size: 13px; color: var(--text-muted); margin-bottom: 8px;">Creates a second document encrypted under the new rotated key version.</div>
+                <button type="button" class="btn btn-primary btn-sm" id="btn-demo-step-3">3. Create after document</button>
+              </div>
+              <div id="demo-result-3" class="demo-result-box" style="flex: 1; font-family: var(--font-mono); font-size: 12px; color: var(--text-muted); background: var(--bg-base); padding: 8px 12px; border-radius: var(--radius); min-height: 36px; white-space: pre-wrap;">Ready</div>
+            </div>
+
+            <!-- Step 4 -->
+            <div class="demo-step-card" style="background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius); padding: 16px; display: flex; align-items: flex-start; gap: 16px;">
+              <div style="font-weight: 700; font-size: 16px; color: var(--accent); min-width: 24px;">4.</div>
+              <div style="flex: 1;">
+                <div style="font-weight: 600; margin-bottom: 4px;">Read both documents</div>
+                <div style="font-size: 13px; color: var(--text-muted); margin-bottom: 8px;">Verifies both before and after documents decrypt successfully across key versions.</div>
+                <button type="button" class="btn btn-primary btn-sm" id="btn-demo-step-4">4. Read both documents</button>
+              </div>
+              <div id="demo-result-4" class="demo-result-box" style="flex: 1; font-family: var(--font-mono); font-size: 12px; color: var(--text-muted); background: var(--bg-base); padding: 8px 12px; border-radius: var(--radius); min-height: 36px; white-space: pre-wrap;">Ready</div>
+            </div>
+
+            <!-- Step 5 -->
+            <div class="demo-step-card" style="background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius); padding: 16px; display: flex; align-items: flex-start; gap: 16px;">
+              <div style="font-weight: 700; font-size: 16px; color: var(--accent); min-width: 24px;">5.</div>
+              <div style="flex: 1;">
+                <div style="font-weight: 600; margin-bottom: 4px;">Destroy key (Crypto-shred)</div>
+                <div style="font-size: 13px; color: var(--text-muted); margin-bottom: 8px;">Permanently shreds wrapped key material for Demo Co. Type DESTROY to confirm.</div>
+                <div style="display: flex; gap: 8px; align-items: center; margin-top: 6px;">
+                  <input type="text" id="input-demo-destroy-confirm" class="form-input" placeholder="Type DESTROY" style="width: 140px; font-size: 12px;" aria-label="Type DESTROY to confirm">
+                  <button type="button" class="btn btn-danger btn-sm" id="btn-demo-step-5">5. Destroy key</button>
+                </div>
+              </div>
+              <div id="demo-result-5" class="demo-result-box" style="flex: 1; font-family: var(--font-mono); font-size: 12px; color: var(--text-muted); background: var(--bg-base); padding: 8px 12px; border-radius: var(--radius); min-height: 36px; white-space: pre-wrap;">Ready</div>
+            </div>
+
+            <!-- Step 6 -->
+            <div class="demo-step-card" style="background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius); padding: 16px; display: flex; align-items: flex-start; gap: 16px;">
+              <div style="font-weight: 700; font-size: 16px; color: var(--accent); min-width: 24px;">6.</div>
+              <div style="flex: 1;">
+                <div style="font-weight: 600; margin-bottom: 4px;">Read both documents again</div>
+                <div style="font-size: 13px; color: var(--text-muted); margin-bottom: 8px;">Proves both documents fail decryption safely with shredded status and zero content leakage.</div>
+                <button type="button" class="btn btn-primary btn-sm" id="btn-demo-step-6">6. Read both again</button>
+              </div>
+              <div id="demo-result-6" class="demo-result-box" style="flex: 1; font-family: var(--font-mono); font-size: 12px; color: var(--text-muted); background: var(--bg-base); padding: 8px 12px; border-radius: var(--radius); min-height: 36px; white-space: pre-wrap;">Ready</div>
+            </div>
+
+            <!-- Step 7 -->
+            <div class="demo-step-card" style="background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius); padding: 16px; display: flex; align-items: flex-start; gap: 16px;">
+              <div style="font-weight: 700; font-size: 16px; color: var(--accent); min-width: 24px;">7.</div>
+              <div style="flex: 1;">
+                <div style="font-weight: 600; margin-bottom: 4px;">Read Acme document</div>
+                <div style="font-size: 13px; color: var(--text-muted); margin-bottom: 8px;">Reads Acme's document in Acme context to prove other tenants remain completely unaffected.</div>
+                <button type="button" class="btn btn-primary btn-sm" id="btn-demo-step-7">7. Read Acme document</button>
+              </div>
+              <div id="demo-result-7" class="demo-result-box" style="flex: 1; font-family: var(--font-mono); font-size: 12px; color: var(--text-muted); background: var(--bg-base); padding: 8px 12px; border-radius: var(--radius); min-height: 36px; white-space: pre-wrap;">Ready</div>
+            </div>
           </div>
         </section>
 
