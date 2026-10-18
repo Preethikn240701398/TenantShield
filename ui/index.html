@@ -575,6 +575,73 @@
           </div>
         </section>
 
+        <!-- Try One Attack By Hand Section -->
+        <section class="dashboard-section" id="section-attack">
+          <div class="section-header">
+            <h2>Try one attack by hand</h2>
+            <span class="text-small">Execute a single targeted cross-tenant attack against live endpoints</span>
+          </div>
+          <div class="demo-page-note" style="margin-bottom: 16px; padding: 12px 16px; background: rgba(56, 189, 248, 0.08); border-left: 3px solid var(--accent); border-radius: var(--radius); font-size: 13px; color: var(--text-main);">
+            This is a single attack in normal mode; the full suite runs seven attacks.
+          </div>
+          <hr>
+
+          <div style="background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius); padding: 16px; margin-bottom: 16px;">
+            <div style="display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-end;">
+              <div style="flex: 1; min-width: 160px;">
+                <label class="form-label" for="attack-select-attacker">Attacker tenant</label>
+                <select id="attack-select-attacker" class="form-input" style="font-size: 13px;">
+                  <option value="Acme" selected>Acme</option>
+                  <option value="Beta">Beta</option>
+                  <option value="Demo Co">Demo Co</option>
+                </select>
+              </div>
+              <div style="flex: 1; min-width: 160px;">
+                <label class="form-label" for="attack-select-victim">Victim tenant</label>
+                <select id="attack-select-victim" class="form-input" style="font-size: 13px;">
+                  <option value="Acme">Acme</option>
+                  <option value="Beta" selected>Beta</option>
+                  <option value="Demo Co">Demo Co</option>
+                </select>
+              </div>
+              <div style="flex: 2; min-width: 220px;">
+                <label class="form-label" for="attack-select-action">Attack action</label>
+                <select id="attack-select-action" class="form-input" style="font-size: 13px;">
+                  <option value="read" selected>Read document (GET /documents/{id})</option>
+                  <option value="update">Update document (PUT /documents/{id})</option>
+                  <option value="delete">Delete document (DELETE /documents/{id})</option>
+                  <option value="create-into-victim">Create injection (POST /documents with victim tenant_id)</option>
+                </select>
+              </div>
+              <div>
+                <button type="button" class="btn btn-primary" id="btn-run-attack">Run attack</button>
+              </div>
+            </div>
+          </div>
+
+          <div id="attack-alert-box" class="alert alert-error" style="display: none; margin-bottom: 16px;"></div>
+
+          <!-- 6-step list display -->
+          <div id="attack-steps-container" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px;">
+            <!-- Populated via textContent -->
+          </div>
+
+          <!-- Results Summary Card -->
+          <div id="attack-result-card" style="display: none; background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius); padding: 16px;">
+            <h3 style="margin-top: 0; margin-bottom: 12px; font-size: 15px;">Attack evaluation result</h3>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 12px;">
+              <div><span class="text-small" style="color: var(--text-muted);">Request:</span> <strong id="attack-res-request" style="font-family: var(--font-mono); font-size: 12px;"></strong></div>
+              <div><span class="text-small" style="color: var(--text-muted);">HTTP status:</span> <strong id="attack-res-status" class="tabular-nums"></strong></div>
+              <div><span class="text-small" style="color: var(--text-muted);">Outcome:</span> <span id="attack-res-outcome"></span></div>
+              <div><span class="text-small" style="color: var(--text-muted);">Blocking control:</span> <strong id="attack-res-control"></strong></div>
+              <div><span class="text-small" style="color: var(--text-muted);">Victim document state:</span> <span id="attack-res-victim-state"></span></div>
+            </div>
+            <div style="padding: 8px 12px; background: var(--bg-base); border-radius: var(--radius); font-size: 13px;">
+              <span class="text-small" style="color: var(--text-muted); font-weight: 600;">Explanation:</span> <span id="attack-res-explanation"></span>
+            </div>
+          </div>
+        </section>
+
         <!-- 7. Glossary Section -->
         <section class="dashboard-section" id="section-glossary">
           <div class="section-header">

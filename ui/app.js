@@ -410,7 +410,7 @@
       adminDashboard.style.display = 'block';
 
       var slug = hash.replace(/^#admin\/?/, '').replace(/^#/, '');
-      var validSlugs = ['verification', 'layer-kill', 'mutation', 'noisy-neighbour', 'metrics', 'keys', 'demo', 'glossary'];
+      var validSlugs = ['verification', 'layer-kill', 'mutation', 'noisy-neighbour', 'metrics', 'keys', 'demo', 'attack', 'glossary'];
       if (validSlugs.indexOf(slug) === -1) {
         slug = 'verification';
       }
@@ -1033,6 +1033,7 @@
       { id: 'section-metrics', slug: 'metrics', label: 'Tenant metrics' },
       { id: 'section-keys', slug: 'keys', label: 'Tenant keys' },
       { id: 'section-demo', slug: 'demo', label: 'Key lifecycle demo' },
+      { id: 'section-attack', slug: 'attack', label: 'Try one attack' },
       { id: 'section-glossary', slug: 'glossary', label: 'Glossary' }
     ];
 
@@ -1132,6 +1133,7 @@
     setupSendTestTrafficButton();
     loadKeysSection();
     setupKeyLifecycleDemo();
+    setupAttackDemo();
     loadGlossarySection();
     setupHowItWorksToggles();
     setupStaticGlossaryButtons();
@@ -2042,6 +2044,191 @@
         btn.textContent = 'Send test traffic';
         if (statusMsg) {
           statusMsg.textContent = 'Error: ' + err.message;
+        }
+      }
+    });
+  }
+
+  // 9. Try One Attack by Hand Controller
+  function setupAttackDemo() {
+    var selAttacker = document.getElementById('attack-select-attacker');
+    var selVictim = document.getElementById('attack-select-victim');
+    var selAction = document.getElementById('attack-select-action');
+    var btn = document.getElementById('btn-run-attack');
+    var alertBox = document.getElementById('attack-alert-box');
+    var stepsContainer = document.getElementById('attack-steps-container');
+    var resultCard = document.getElementById('attack-result-card');
+    var resReq = document.getElementById('attack-res-request');
+    var resStatus = document.getElementById('attack-res-status');
+    var resOutcome = document.getElementById('attack-res-outcome');
+    var resControl = document.getElementById('attack-res-control');
+    var resVictimState = document.getElementById('attack-res-victim-state');
+    var resExplanation = document.getElementById('attack-res-explanation');
+
+    if (!btn || btn.getAttribute('data-bound')) return;
+    btn.setAttribute('data-bound', 'true');
+
+    var defaultStepTitles = [
+      'Authenticate sessions',
+      'Plant canary document in victim workspace',
+      'Send attack request as attacker',
+      'Verify victim document integrity',
+      'Clean up planted test documents',
+      'Evaluate attack outcome'
+    ];
+
+    function renderInitialSteps() {
+      while (stepsContainer.firstChild) stepsContainer.removeChild(stepsContainer.firstChild);
+      for (var s = 0; s < 6; s++) {
+        var card = document.createElement('div');
+        card.id = 'attack-step-row-' + (s + 1);
+        card.style.display = 'flex';
+        card.style.alignItems = 'center';
+        card.style.gap = '12px';
+        card.style.padding = '8px 12px';
+        card.style.background = 'var(--bg-surface)';
+        card.style.border = '1px solid var(--border-subtle)';
+        card.style.borderRadius = 'var(--radius)';
+        card.style.fontSize = '13px';
+
+        var numSpan = document.createElement('span');
+        numSpan.style.fontWeight = '700';
+        numSpan.style.color = 'var(--text-muted)';
+        numSpan.style.minWidth = '20px';
+        numSpan.textContent = (s + 1) + '.';
+        card.appendChild(numSpan);
+
+        var msgSpan = document.createElement('span');
+        msgSpan.className = 'attack-step-msg';
+        msgSpan.style.flex = '1';
+        msgSpan.textContent = defaultStepTitles[s];
+        card.appendChild(msgSpan);
+
+        var statusSpan = document.createElement('span');
+        statusSpan.className = 'attack-step-status';
+        statusSpan.style.fontFamily = 'var(--font-mono)';
+        statusSpan.style.fontSize = '12px';
+        statusSpan.style.color = 'var(--text-muted)';
+        statusSpan.textContent = 'Pending';
+        card.appendChild(statusSpan);
+
+        stepsContainer.appendChild(card);
+      }
+    }
+
+    btn.addEventListener('click', async function () {
+      if (alertBox) {
+        alertBox.style.display = 'none';
+        alertBox.textContent = '';
+      }
+      if (resultCard) {
+        resultCard.style.display = 'none';
+      }
+
+      var attacker = selAttacker ? selAttacker.value : 'Acme';
+      var victim = selVictim ? selVictim.value : 'Beta';
+      var action = selAction ? selAction.value : 'read';
+
+      if (attacker === victim) {
+        if (alertBox) {
+          alertBox.style.display = 'block';
+          alertBox.textContent = 'Attacker and victim must be different tenants.';
+        }
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = 'Running attack...';
+      renderInitialSteps();
+
+      try {
+        var startRes = await apiFetch('/admin/demo/attack/start', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            attacker: attacker,
+            victim: victim,
+            action: action
+          })
+        });
+
+        var startData = await startRes.json();
+        if (!startRes.ok) {
+          throw new Error(startData.detail || 'Failed to start attack run.');
+        }
+
+        var runId = startData.run_id;
+
+        var pollInterval = setInterval(async function () {
+          try {
+            var stRes = await apiFetch('/admin/demo/attack/status/' + runId);
+            var stData = await stRes.json();
+            if (!stRes.ok) throw new Error(stData.detail || 'Failed to check attack status.');
+
+            var progress = stData.progress || [];
+            for (var p = 0; p < progress.length; p++) {
+              var rec = progress[p];
+              var row = document.getElementById('attack-step-row-' + rec.step);
+              if (row) {
+                var mEl = row.querySelector('.attack-step-msg');
+                if (mEl) mEl.textContent = rec.message;
+                var sEl = row.querySelector('.attack-step-status');
+                if (sEl) {
+                  sEl.textContent = 'Done';
+                  sEl.style.color = 'var(--accent)';
+                }
+                row.style.borderColor = 'var(--border-subtle)';
+              }
+            }
+
+            if (stData.state === 'finished') {
+              clearInterval(pollInterval);
+              btn.disabled = false;
+              btn.textContent = 'Run attack';
+
+              var res = stData.result;
+              if (res && resultCard) {
+                if (resReq) {
+                  resReq.textContent = (res.request && res.request.method ? res.request.method + ' ' + res.request.path : '—');
+                }
+                if (resStatus) {
+                  resStatus.textContent = res.status_code != null ? String(res.status_code) : '—';
+                }
+                if (resOutcome) {
+                  while (resOutcome.firstChild) resOutcome.removeChild(resOutcome.firstChild);
+                  resOutcome.appendChild(createStatusBadge(res.outcome, getDotTypeForStatus(res.outcome)));
+                }
+                if (resControl) {
+                  resControl.textContent = res.blocking_control || 'unknown';
+                }
+                if (resVictimState) {
+                  while (resVictimState.firstChild) resVictimState.removeChild(resVictimState.firstChild);
+                  resVictimState.appendChild(createStatusBadge(res.victim_doc_state, getDotTypeForStatus(res.victim_doc_state)));
+                }
+                if (resExplanation) {
+                  resExplanation.textContent = res.explanation || '—';
+                }
+                resultCard.style.display = 'block';
+              }
+            } else if (stData.state === 'failed') {
+              clearInterval(pollInterval);
+              btn.disabled = false;
+              btn.textContent = 'Run attack';
+              if (alertBox) {
+                alertBox.style.display = 'block';
+                alertBox.textContent = stData.error || 'Attack run failed.';
+              }
+            }
+          } catch (pollErr) {
+            // Keep polling
+          }
+        }, 800);
+      } catch (err) {
+        btn.disabled = false;
+        btn.textContent = 'Run attack';
+        if (alertBox) {
+          alertBox.style.display = 'block';
+          alertBox.textContent = err.message || 'Error initiating attack run.';
         }
       }
     });
