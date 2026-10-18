@@ -157,3 +157,29 @@ async def test_06_full_isolation_mutation_run(lab_env):
     report_csv = list(results_dir.glob("mutation_report_*.csv"))
     assert len(report_json) > 0, "Expected mutation report JSON in results/"
     assert len(report_csv) > 0, "Expected mutation report CSV in results/"
+
+
+@pytest.mark.asyncio
+async def test_07_mutation_2_flipped_rls_masked_reports_no_leak_owner_access_lost(lab_env):
+    """
+    Validates Mutation 2 (flipped RLS policy):
+    - In isolated run: Tenant A can read Tenant B's doc -> cross_tenant_leak='yes', CAUGHT
+    - In masked run: Layer A blocks Tenant A, owner Tenant B cannot read own doc (RLS flipped),
+      target row is intact in DB -> cross_tenant_leak='no', owner_access_lost='yes', leak_detected=False
+    - Baseline restored cleanly.
+    """
+    runner = IsolationMutationRunner()
+    result = await runner.run_single_mutation(
+        mutation_id="mut_2_flipped_rls_policy",
+        mutation_name="Mutation 2: RLS policy with condition flipped",
+        description="PostgreSQL RLS policy uses 'tenant_id != current_setting(...)' allowing cross-tenant rows.",
+        mutated_layer="Layer B (Database RLS Policy)",
+        mutation_cm_factory=runner._mutate_2_flipped_rls_policy,
+    )
+
+    assert result["isolated_outcome"] == "CAUGHT"
+    assert result["isolated_run"]["cross_tenant_leak"] == "yes"
+    assert result["masked_run"]["leak_detected"] is False
+    assert result["masked_run"]["cross_tenant_leak"] == "no"
+    assert result["masked_run"]["owner_access_lost"] == "yes"
+    assert result["baseline_restored"] is True

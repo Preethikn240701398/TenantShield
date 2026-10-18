@@ -247,3 +247,173 @@ async def test_07_layer_kill_matrix_execution_and_exports():
     json_files = list(results_dir.glob("layer_kill_matrix_*.json"))
     assert len(csv_files) > 0, "Expected layer kill matrix CSV file in results/"
     assert len(json_files) > 0, "Expected layer kill matrix JSON file in results/"
+
+
+@pytest.mark.asyncio
+async def test_08_post_attack_integrity_owner_access_lost_when_row_unchanged():
+    """
+    Validates that when the owner gets a non-200 (e.g. simulated lockout or flipped RLS)
+    but the document still exists unchanged in tenantshield_lab, the integrity check
+    classifies the result as OWNER_ACCESS_LOST (not LEAKED), does not mark the attack
+    as LEAKED, and reports cross_tenant_leak='no' and owner_access_lost='yes'.
+    """
+    from sqlalchemy import create_engine, text
+    from scripts.setup_lab_db import get_lab_url_from_admin, setup_or_reset_lab_database
+    from app.core.config import settings
+    from app.core.database import reconfigure_engine
+    from verifier.runner import confirm_lab_document_admin, VerificationRunner
+    from verifier.generator import AttackSpec
+
+    orig_env = settings.APP_ENV
+    orig_environment = settings.ENVIRONMENT
+    orig_db_url = settings.DATABASE_URL
+    settings.APP_ENV = "lab"
+    settings.ENVIRONMENT = "lab"
+    setup_or_reset_lab_database(settings.POSTGRES_ADMIN_URL, reset=True)
+    reconfigure_engine(settings.LAB_DATABASE_URL)
+    try:
+        runner = VerificationRunner()
+        transport = httpx.ASGITransport(app=app)
+        async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+            await runner.setup_tenants_and_canaries(client)
+            canary_id = runner.canary_doc_b["id"]
+
+            # Confirm row exists in tenantshield_lab and is unchanged via direct admin check
+            admin_check = confirm_lab_document_admin(
+                doc_id=str(canary_id),
+                expected_title=runner.CANARY_TITLE_B,
+                expected_content=runner.CANARY_SECRET_B,
+                tenant_id=str(runner.tenant_id_b),
+            )
+            assert admin_check["exists"] is True
+            assert admin_check["unchanged"] is True
+
+            # Simulate owner getting 404 on reading their own document (e.g. invalid token / lockout)
+            orig_token_b = runner.token_b
+            runner.token_b = "invalid_or_locked_out_token"
+
+            integrity = await runner.verify_tenant_b_integrity(client)
+            assert integrity["intact"] is False
+            assert integrity["status"] == "OWNER_ACCESS_LOST"
+            assert "Document exists and is unchanged in lab database" in integrity["reason"]
+
+            # Under an update attack that is blocked (by Layer A), if owner integrity
+            # has status OWNER_ACCESS_LOST, outcome must remain BLOCKED (not LEAKED).
+            attack = AttackSpec(
+                name="Attack update doc with simulated owner lockout",
+                category="update",
+                method="PUT",
+                path_template="/documents/{document_id}",
+                path_param_name="document_id",
+                path_param_type="resource_id",
+                payload_template={"title": "Hacked Title", "content": "Hacked Content"},
+            )
+
+            attack_res = await runner.execute_attack(client, attack)
+            assert attack_res["outcome"] == "BLOCKED"
+            assert attack_res["owner_access_lost"] is True
+            assert attack_res["data_leak_detected"] is False
+
+            # Restore token
+            runner.token_b = orig_token_b
+    finally:
+        settings.APP_ENV = orig_env
+        settings.ENVIRONMENT = orig_environment
+        reconfigure_engine(orig_db_url)
+
+
+@pytest.mark.asyncio
+async def test_09_post_attack_integrity_leaked_when_row_deleted():
+    """
+    Validates that when the owner gets a non-200 and the row is missing/deleted
+    from tenantshield_lab, the integrity check classifies the result as LEAKED,
+    and attack outcome is marked as LEAKED.
+    """
+    from sqlalchemy import create_engine, text
+    from scripts.setup_lab_db import get_lab_url_from_admin, setup_or_reset_lab_database
+    from app.core.config import settings
+    from app.core.database import reconfigure_engine
+    from verifier.runner import confirm_lab_document_admin, VerificationRunner
+    from verifier.generator import AttackSpec
+
+    orig_env = settings.APP_ENV
+    orig_environment = settings.ENVIRONMENT
+    orig_db_url = settings.DATABASE_URL
+    settings.APP_ENV = "lab"
+    settings.ENVIRONMENT = "lab"
+    setup_or_reset_lab_database(settings.POSTGRES_ADMIN_URL, reset=True)
+    reconfigure_engine(settings.LAB_DATABASE_URL)
+    try:
+        runner = VerificationRunner()
+        transport = httpx.ASGITransport(app=app)
+        async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+            await runner.setup_tenants_and_canaries(client)
+            canary_id = runner.canary_doc_b["id"]
+
+            # Physically delete the document from tenantshield_lab
+            lab_admin_url = get_lab_url_from_admin(settings.POSTGRES_ADMIN_URL)
+            engine = create_engine(lab_admin_url, isolation_level="AUTOCOMMIT")
+            with engine.connect() as conn:
+                conn.execute(
+                    text("DELETE FROM documents WHERE id = :doc_id"),
+                    {"doc_id": str(canary_id)},
+                )
+            engine.dispose()
+
+            # Direct admin check should report missing
+            admin_check = confirm_lab_document_admin(
+                doc_id=str(canary_id),
+                expected_title=runner.CANARY_TITLE_B,
+                expected_content=runner.CANARY_SECRET_B,
+                tenant_id=str(runner.tenant_id_b),
+            )
+            assert admin_check["exists"] is False
+            assert admin_check["unchanged"] is False
+
+            # Owner receives 404; integrity check must classify as LEAKED
+            integrity = await runner.verify_tenant_b_integrity(client)
+            assert integrity["intact"] is False
+            assert integrity["status"] == "LEAKED"
+            assert "Target document row" in integrity["reason"] or "missing" in integrity["reason"]
+
+            # In an update/delete attack, missing row triggers outcome=LEAKED
+            attack = AttackSpec(
+                name="Attack delete check missing canary",
+                category="delete",
+                method="DELETE",
+                path_template="/documents/{document_id}",
+                path_param_name="document_id",
+                path_param_type="resource_id",
+            )
+            attack_res = await runner.execute_attack(client, attack)
+            assert attack_res["outcome"] == "LEAKED"
+    finally:
+        settings.APP_ENV = orig_env
+        settings.ENVIRONMENT = orig_environment
+        reconfigure_engine(orig_db_url)
+
+
+def test_10_admin_confirmation_refused_outside_lab_env():
+    """
+    Validates safety refusal: admin integrity confirmation against tenantshield_lab
+    must refuse to run when APP_ENV is not 'lab'.
+    """
+    from app.core.config import settings
+    from verifier.runner import confirm_lab_document_admin
+
+    orig_env = settings.APP_ENV
+    orig_environment = settings.ENVIRONMENT
+    settings.APP_ENV = "production"
+    settings.ENVIRONMENT = "production"
+    try:
+        with pytest.raises(PermissionError) as exc_info:
+            confirm_lab_document_admin(
+                doc_id="00000000-0000-0000-0000-000000000000",
+                expected_title="Test",
+                expected_content="Test",
+                tenant_id="00000000-0000-0000-0000-000000000000",
+            )
+        assert "strictly restricted to APP_ENV='lab'" in str(exc_info.value)
+    finally:
+        settings.APP_ENV = orig_env
+        settings.ENVIRONMENT = orig_environment

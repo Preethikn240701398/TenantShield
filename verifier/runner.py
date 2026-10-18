@@ -13,6 +13,7 @@ Changes in this revision (Level 7 review):
 - All attacks are real HTTP requests through httpx.ASGITransport (full app stack).
 """
 
+import os
 from datetime import datetime, timezone
 import json
 import logging
@@ -20,10 +21,13 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import httpx
+from sqlalchemy import create_engine, text
 
 from app.core.config import settings
 from app.main import app
 from app.services.auth import AuthService
+from app.services.crypto import CryptoService
+from scripts.setup_lab_db import get_lab_url_from_admin
 from verifier.generator import AttackGenerator, AttackSpec
 
 logger = logging.getLogger("tenantshield.verifier")
@@ -42,6 +46,112 @@ def _detect_blocking_control(status_code: int, response_text: str, attack_catego
     if status_code == 404:
         return "unknown"  # could be ownership check, RLS, or decrypt failure
     return "unknown"
+
+
+def confirm_lab_document_admin(
+    doc_id: str,
+    expected_title: str,
+    expected_content: str,
+    tenant_id: str,
+    admin_url: Optional[str] = None,
+) -> Dict[str, Any]:
+    """
+    Confirms the real state of a document row in tenantshield_lab using an
+    administrative connection. Refuses to run outside APP_ENV='lab'.
+    Checks:
+    1. Does the target row still exist?
+    2. Are its title and content unchanged?
+    """
+    env = (getattr(settings, "APP_ENV", "") or getattr(settings, "ENVIRONMENT", "")).lower()
+    if env != "lab":
+        raise PermissionError(
+            f"Admin integrity confirmation against tenantshield_lab is strictly restricted to APP_ENV='lab' (current: '{env}')."
+        )
+
+    resolved_admin_url = admin_url or os.getenv("POSTGRES_ADMIN_URL") or settings.POSTGRES_ADMIN_URL
+    if not resolved_admin_url:
+        raise ValueError("POSTGRES_ADMIN_URL is required for lab admin database connection.")
+
+    lab_admin_url = get_lab_url_from_admin(resolved_admin_url)
+    engine = create_engine(lab_admin_url, isolation_level="AUTOCOMMIT")
+
+    try:
+        with engine.connect() as conn:
+            res = conn.execute(
+                text(
+                    "SELECT id, tenant_id, owner_id, title, content, key_version, nonce, ciphertext "
+                    "FROM documents WHERE id = :doc_id"
+                ),
+                {"doc_id": doc_id},
+            )
+            row = res.fetchone()
+            if row is None:
+                return {
+                    "exists": False,
+                    "unchanged": False,
+                    "title_matches": False,
+                    "content_matches": False,
+                    "reason": f"Target document row {doc_id} does not exist in database",
+                }
+
+            title_matches = (row.title == expected_title)
+            actual_content = None
+
+            if row.ciphertext is not None and row.nonce is not None:
+                key_version = row.key_version or 1
+                key_res = conn.execute(
+                    text(
+                        "SELECT wrapped_dek, wrapping_nonce, status FROM tenant_keys "
+                        "WHERE tenant_id = :tenant_id AND key_version = :key_version"
+                    ),
+                    {"tenant_id": str(row.tenant_id), "key_version": key_version},
+                )
+                key_row = key_res.fetchone()
+                if key_row is None:
+                    return {
+                        "exists": True,
+                        "unchanged": False,
+                        "title_matches": title_matches,
+                        "content_matches": False,
+                        "reason": f"DEK for tenant {row.tenant_id} version {key_version} missing from tenant_keys",
+                    }
+
+                wrapped_dek = bytes(key_row.wrapped_dek)
+                wrapping_nonce = bytes(key_row.wrapping_nonce)
+                dek = CryptoService.unwrap_dek(wrapped_dek, wrapping_nonce)
+                actual_content = CryptoService.decrypt_document(
+                    dek=dek,
+                    ciphertext=bytes(row.ciphertext),
+                    nonce=bytes(row.nonce),
+                    tenant_id=str(row.tenant_id),
+                    document_id=str(row.id),
+                )
+            else:
+                actual_content = row.content or ""
+
+            content_matches = (actual_content == expected_content)
+            unchanged = title_matches and content_matches
+
+            if not unchanged:
+                reasons = []
+                if not title_matches:
+                    reasons.append(f"title modified from '{expected_title}' to '{row.title}'")
+                if not content_matches:
+                    reasons.append("content modified")
+                reason = f"Document row exists but is modified: {', '.join(reasons)}"
+            else:
+                reason = "Document row exists and title and content are unchanged in database"
+
+            return {
+                "exists": True,
+                "unchanged": unchanged,
+                "title_matches": title_matches,
+                "content_matches": content_matches,
+                "reason": reason,
+            }
+    finally:
+        engine.dispose()
+
 
 
 class VerificationRunner:
@@ -161,22 +271,78 @@ class VerificationRunner:
     async def verify_tenant_b_integrity(self, client: httpx.AsyncClient) -> Dict[str, Any]:
         """
         Confirms Tenant B's canary document is intact, unmodified, and uncorrupted.
+        If owner receives a non-200, checks the lab database directly as admin when APP_ENV=lab.
         """
         assert self.canary_doc_b is not None
         res = await client.get(
             f"/documents/{self.canary_doc_b['id']}",
             headers={"Authorization": f"Bearer {self.token_b}"},
         )
-        if res.status_code != 200:
-            return {"intact": False, "reason": f"Document missing or returned status {res.status_code}"}
+        if res.status_code == 200:
+            doc = res.json()
+            if doc.get("title") != self.CANARY_TITLE_B:
+                return {
+                    "intact": False,
+                    "status": "LEAKED",
+                    "reason": f"Document title modified to '{doc.get('title')}'",
+                }
+            if doc.get("content") != self.CANARY_SECRET_B:
+                return {
+                    "intact": False,
+                    "status": "LEAKED",
+                    "reason": "Document content was overwritten or altered",
+                }
+            return {
+                "intact": True,
+                "status": "INTACT",
+                "reason": "Document content and title unaltered",
+            }
 
-        doc = res.json()
-        if doc.get("title") != self.CANARY_TITLE_B:
-            return {"intact": False, "reason": f"Document title modified to '{doc.get('title')}'"}
-        if doc.get("content") != self.CANARY_SECRET_B:
-            return {"intact": False, "reason": "Document content was overwritten or altered"}
+        # Owner received non-200: confirm real database state in lab environment
+        env = (getattr(settings, "APP_ENV", "") or getattr(settings, "ENVIRONMENT", "")).lower()
+        if env != "lab":
+            return {
+                "intact": False,
+                "status": "LEAKED",
+                "reason": (
+                    f"Document returned status {res.status_code}; "
+                    f"direct admin database confirmation refused outside APP_ENV='lab' (current: '{env}')"
+                ),
+            }
 
-        return {"intact": True, "reason": "Document content and title unaltered"}
+        try:
+            admin_check = confirm_lab_document_admin(
+                doc_id=str(self.canary_doc_b["id"]),
+                expected_title=self.CANARY_TITLE_B,
+                expected_content=self.CANARY_SECRET_B,
+                tenant_id=str(self.tenant_id_b),
+            )
+            if admin_check["exists"] and admin_check["unchanged"]:
+                return {
+                    "intact": False,
+                    "status": "OWNER_ACCESS_LOST",
+                    "reason": (
+                        f"Document exists and is unchanged in lab database, "
+                        f"but owner received status {res.status_code}"
+                    ),
+                    "admin_verification": admin_check,
+                }
+            else:
+                return {
+                    "intact": False,
+                    "status": "LEAKED",
+                    "reason": admin_check.get(
+                        "reason",
+                        f"Document missing or modified in database (owner received status {res.status_code})",
+                    ),
+                    "admin_verification": admin_check,
+                }
+        except Exception as exc:
+            return {
+                "intact": False,
+                "status": "LEAKED",
+                "reason": f"Document unreadable (status {res.status_code}) and admin DB check failed: {exc}",
+            }
 
     async def run_list_leak_check(self, client: httpx.AsyncClient) -> Dict[str, Any]:
         """
@@ -319,7 +485,7 @@ class VerificationRunner:
             if attack.category in ("update", "delete"):
                 integrity = await self.verify_tenant_b_integrity(client)
                 integrity_check = integrity
-                if not integrity["intact"]:
+                if integrity.get("status") == "LEAKED":
                     outcome = "LEAKED"
                     blocking_control = "none"
                     leak_evidence = f"Integrity violation on Tenant B resource: {integrity['reason']}"
@@ -365,14 +531,15 @@ class VerificationRunner:
                     "visible_to_b_via_list": visible_to_b_via_list,
                     "visible_to_a": visible_to_a,
                     "beta_canary_intact": beta_integrity["intact"],
+                    "beta_canary_status": beta_integrity.get("status", "INTACT" if beta_integrity["intact"] else "COMPROMISED"),
                 }
 
-                # BLOCKED only if: new doc belongs to attacker, not visible to B, Beta unchanged
+                # BLOCKED only if: new doc belongs to attacker, not visible to B, Beta not compromised/leaked
                 if (
                     assigned_tenant == str(self.tenant_id_b)
                     or visible_to_b_via_get
                     or visible_to_b_via_list
-                    or not beta_integrity["intact"]
+                    or beta_integrity.get("status") == "LEAKED"
                 ):
                     outcome = "LEAKED"
                     blocking_control = "none"
@@ -388,6 +555,12 @@ class VerificationRunner:
                 outcome = "BLOCKED"
                 blocking_control = _detect_blocking_control(response_status, response_text, "create_injection")
 
+        owner_lost = False
+        if integrity_check and integrity_check.get("status") == "OWNER_ACCESS_LOST":
+            owner_lost = True
+        elif create_injection_proof and create_injection_proof.get("beta_canary_status") == "OWNER_ACCESS_LOST":
+            owner_lost = True
+
         return {
             "attack_name": attack.name,
             "category": attack.category,
@@ -398,6 +571,7 @@ class VerificationRunner:
             "data_leak_detected": data_leak_detected,
             "leak_evidence": leak_evidence,
             "integrity_check": integrity_check,
+            "owner_access_lost": owner_lost,
             "blocking_control": blocking_control,
             "description": attack.description,
             "create_injection_proof": create_injection_proof,
@@ -455,11 +629,26 @@ class VerificationRunner:
             if list_leak_detected:
                 leaked_count += 1
 
+            if final_integrity.get("status") == "LEAKED":
+                leaked_count += 1
+
+            cross_tenant_leak = (leaked_count > 0 or list_leak_detected)
+            owner_access_lost = (
+                final_integrity.get("status") == "OWNER_ACCESS_LOST"
+                or any(a.get("owner_access_lost", False) for a in attack_results)
+            )
+
             overall_verdict = (
                 "NO_LEAK_DETECTED"
-                if (leaked_count == 0 and final_integrity["intact"] and not list_leak_detected)
+                if not cross_tenant_leak
                 else "LEAK_DETECTED"
             )
+
+            integrity_label = "INTACT"
+            if final_integrity.get("status") == "OWNER_ACCESS_LOST":
+                integrity_label = "OWNER_ACCESS_LOST"
+            elif final_integrity.get("status") == "LEAKED" or not final_integrity.get("intact", True):
+                integrity_label = "COMPROMISED"
 
             now_iso = datetime.now(timezone.utc).isoformat()
             timestamp_slug = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
@@ -479,8 +668,10 @@ class VerificationRunner:
                     "leaked_attacks": leaked_count,
                     "inconclusive_attacks": inconclusive_count,
                     "control_verification": control_result["outcome"],
-                    "tenant_b_canary_integrity": "INTACT" if final_integrity["intact"] else "COMPROMISED",
+                    "tenant_b_canary_integrity": integrity_label,
                     "list_leak_check": list_leak_result["outcome"],
+                    "cross_tenant_leak": "yes" if cross_tenant_leak else "no",
+                    "owner_access_lost": "yes" if owner_access_lost else "no",
                     "overall_verdict": overall_verdict,
                 },
                 "control_verification": control_result,
@@ -514,6 +705,8 @@ class VerificationRunner:
         print(f" Inconclusive (429) : {summary['inconclusive_attacks']}")
         print(f" List-Leak Check    : {summary['list_leak_check']}")
         print(f" Canary Integrity   : {summary['tenant_b_canary_integrity']}")
+        print(f" Cross-Tenant Leak  : {summary.get('cross_tenant_leak', 'no')}")
+        print(f" Owner Access Lost  : {summary.get('owner_access_lost', 'no')}")
         print(f" Verdict            : {summary['overall_verdict']}")
         print("-" * 72)
         print(" ATTACK BREAKDOWN:")

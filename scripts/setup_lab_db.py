@@ -45,7 +45,10 @@ def get_default_postgres_url(admin_url: str) -> str:
 def get_lab_url_from_admin(admin_url: str) -> str:
     """Derives a connection URL pointing to 'tenantshield_lab' using admin credentials."""
     parsed = urlparse(admin_url)
-    return urlunparse((parsed.scheme, parsed.netloc, "/tenantshield_lab", parsed.params, parsed.query, parsed.fragment))
+    scheme = parsed.scheme
+    if "+asyncpg" in scheme:
+        scheme = scheme.replace("+asyncpg", "+psycopg")
+    return urlunparse((scheme, parsed.netloc, "/tenantshield_lab", parsed.params, parsed.query, parsed.fragment))
 
 
 def setup_or_reset_lab_database(admin_url: str, reset: bool = False) -> None:

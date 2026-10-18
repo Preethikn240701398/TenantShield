@@ -1,0 +1,17 @@
+{
+  "suite": "TenantShield Level 6: Redis Rate Limiting and Per-Tenant Metrics",
+  "generated_at_utc": "2026-10-17T15:54:24.678020+00:00",
+  "total_experiments_recorded": 1,
+  "experiments": [
+    {
+      "test_number": 4,
+      "requirement": "Limit resets after window expires",
+      "timestamp_utc": "2026-10-17T15:54:24.671291+00:00",
+      "outcome": "PASSED",
+      "evidence": {
+        "window_seconds": 2,
+        "post_expiry_status": 200
+      }
+    }
+  ]
+}

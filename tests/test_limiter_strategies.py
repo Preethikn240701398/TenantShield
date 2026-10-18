@@ -31,10 +31,10 @@ from app.services.rate_limiter import RateLimiterService
 async def reset_limiter_state():
     """Reset limiter strategy and Redis state before and after each test."""
     await LimiterService.reset_all_limits()
-    orig_strategy = LimiterService._active_strategy
     yield
     await LimiterService.reset_all_limits()
-    LimiterService.set_strategy("request_count")
+    LimiterService._active_strategy = None
+    RateLimiterService.set_limiter(None)
 
 
 @pytest.mark.asyncio

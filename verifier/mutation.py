@@ -321,6 +321,8 @@ class IsolationMutationRunner:
             "verdict": verdict,
             "control_passed": control_passed,
             "leaks": leaks,
+            "cross_tenant_leak": report["summary"].get("cross_tenant_leak", "no"),
+            "owner_access_lost": report["summary"].get("owner_access_lost", "no"),
             "evidence": baseline_state["evidence"],
         }
 
@@ -595,10 +597,15 @@ class IsolationMutationRunner:
                 uncontextualized_test and uncontextualized_test.get("context_leaked", False)
             )
 
+            isolated_cross_leak = "yes" if (leaks_isolated > 0 or (uncontextualized_test and uncontextualized_test.get("context_leaked", False))) else "no"
+            isolated_owner_lost = report_isolated["summary"].get("owner_access_lost", "no")
+
             isolated_result = {
                 "outcome": "CAUGHT" if is_caught else "MISSED",
                 "total_leaks": leaks_isolated,
                 "overall_verdict": verdict_isolated,
+                "cross_tenant_leak": isolated_cross_leak,
+                "owner_access_lost": isolated_owner_lost,
                 "control_passed": report_isolated["summary"]["control_verification"] == "PASSED",
                 "canary_integrity": report_isolated["summary"]["tenant_b_canary_integrity"],
                 "list_leak_check": report_isolated["summary"]["list_leak_check"],
@@ -629,11 +636,15 @@ class IsolationMutationRunner:
 
             leaks_masked = report_masked["summary"]["leaked_attacks"]
             verdict_masked = report_masked["summary"]["overall_verdict"]
+            masked_cross_leak = "yes" if leaks_masked > 0 else "no"
+            masked_owner_lost = report_masked["summary"].get("owner_access_lost", "no")
 
             masked_result = {
                 "leak_detected": leaks_masked > 0,
                 "total_leaks": leaks_masked,
                 "overall_verdict": verdict_masked,
+                "cross_tenant_leak": masked_cross_leak,
+                "owner_access_lost": masked_owner_lost,
                 "masked_by_other_layers": leaks_masked == 0,
                 "control_passed": report_masked["summary"]["control_verification"] == "PASSED",
                 "canary_integrity": report_masked["summary"]["tenant_b_canary_integrity"],
@@ -659,6 +670,8 @@ class IsolationMutationRunner:
             "mutated_layer": mutated_layer,
             "detection_method": detection_method,
             "isolated_outcome": isolated_result["outcome"] if isolated_result else "MISSED",
+            "cross_tenant_leak": masked_result.get("cross_tenant_leak", "no") if masked_result else "no",
+            "owner_access_lost": masked_result.get("owner_access_lost", "no") if masked_result else "no",
             "isolated_run": isolated_result,
             "masked_run": masked_result,
             "evidence": evidence_during,
@@ -785,7 +798,11 @@ class IsolationMutationRunner:
                     "Detection Method",
                     "Isolated Outcome",
                     "Isolated Leaks",
+                    "Isolated Cross-Tenant Leak",
+                    "Isolated Owner Access Lost",
                     "Masked Leak Detected",
+                    "Masked Cross-Tenant Leak",
+                    "Masked Owner Access Lost",
                     "Baseline Restored",
                     "Description",
                 ])
@@ -797,7 +814,11 @@ class IsolationMutationRunner:
                         m.get("detection_method", "ATTACK_SUITE"),
                         m["isolated_outcome"],
                         m["isolated_run"]["total_leaks"] if m.get("isolated_run") else "N/A",
+                        m["isolated_run"].get("cross_tenant_leak", "N/A") if m.get("isolated_run") else "N/A",
+                        m["isolated_run"].get("owner_access_lost", "N/A") if m.get("isolated_run") else "N/A",
                         m["masked_run"]["leak_detected"] if m.get("masked_run") else "N/A",
+                        m["masked_run"].get("cross_tenant_leak", "N/A") if m.get("masked_run") else "N/A",
+                        m["masked_run"].get("owner_access_lost", "N/A") if m.get("masked_run") else "N/A",
                         m["baseline_restored"],
                         m["description"],
                     ])
@@ -809,26 +830,33 @@ class IsolationMutationRunner:
 
     def _print_console_summary(self, report: Dict[str, Any], json_path: Path, csv_path: Path) -> None:
         """Prints observed executive summary table using strict factual wording."""
-        print("\n" + "=" * 105)
+        print("\n" + "=" * 125)
         print(" TENANTSHIELD: ISOLATION MUTATION TESTING SUMMARY")
         print(" Target: tenantshield_lab | No Docker | Native Windows PostgreSQL 16")
-        print("=" * 105)
+        print("=" * 125)
         print(f" Run ID:    {report['run_id']}")
         print(f" Timestamp: {report['timestamp']}")
         print(f" Score:     {report['isolation_mutation_score']}")
-        print("-" * 105)
-        print(f"{'#':<3} {'Mutation Name':<38} {'Layer':<18} {'Method':<16} {'Isolated':<10} {'Masked':<10} {'Restored':<8}")
-        print("-" * 105)
+        print("-" * 125)
+        print(f"{'#':<3} {'Mutation Name':<38} {'Layer':<18} {'Method':<16} {'Isolated':<10} {'Masked':<28} {'Restored':<8}")
+        print("-" * 125)
 
         for i, m in enumerate(report["mutations"], start=1):
             isolated_status = m["isolated_outcome"]
-            masked_status = "LEAK" if m["masked_run"]["leak_detected"] else "NO_LEAK"
+            masked_run = m.get("masked_run", {})
+            if masked_run.get("cross_tenant_leak") == "yes" or (masked_run.get("leak_detected") and masked_run.get("cross_tenant_leak") != "no"):
+                masked_status = "LEAK"
+            elif masked_run.get("owner_access_lost") == "yes":
+                masked_status = "NO_LEAK (OWNER_ACCESS_LOST)"
+            else:
+                masked_status = "NO_LEAK"
+
             restored = "YES" if m["baseline_restored"] else "NO"
             layer_short = m["mutated_layer"][:17]
             method_short = m.get("detection_method", "ATTACK_SUITE")[:15]
-            print(f"{i:<3} {m['name'][:37]:<38} {layer_short:<18} {method_short:<16} {isolated_status:<10} {masked_status:<10} {restored:<8}")
+            print(f"{i:<3} {m['name'][:37]:<38} {layer_short:<18} {method_short:<16} {isolated_status:<10} {masked_status:<28} {restored:<8}")
 
-        print("-" * 105)
+        print("-" * 125)
         if report["missed_mutations"]:
             print(f" MISSED Mutations ({len(report['missed_mutations'])}):")
             for missed in report["missed_mutations"]:
@@ -839,4 +867,4 @@ class IsolationMutationRunner:
         print(f"\n Reports saved:")
         print(f"  JSON: {json_path}")
         print(f"  CSV:  {csv_path}")
-        print("=" * 90 + "\n")
+        print("=" * 125 + "\n")

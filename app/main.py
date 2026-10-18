@@ -14,6 +14,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.api.admin import router as admin_router
 from app.api.auth import router as auth_router
+from app.api.dashboard import router as dashboard_router
 from app.api.documents import router as documents_router
 from app.api.routes import router as system_router
 from app.core.config import settings
@@ -118,11 +119,30 @@ def create_application() -> FastAPI:
     # Per-tenant operational metrics and latency tracking middleware
     app.add_middleware(TenantMetricsMiddleware)
 
+    @app.middleware("http")
+    async def ui_security_headers(request: Request, call_next):
+        response = await call_next(request)
+        if request.url.path.startswith("/ui"):
+            response.headers["Content-Security-Policy"] = (
+                "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none';"
+            )
+            response.headers["X-Content-Type-Options"] = "nosniff"
+            response.headers["X-Frame-Options"] = "DENY"
+        return response
+
     # Register Endpoints
     app.include_router(system_router)
     app.include_router(auth_router)
     app.include_router(documents_router)
     app.include_router(admin_router)
+    app.include_router(dashboard_router)
+
+    # Mount UI static files
+    from pathlib import Path
+    from fastapi.staticfiles import StaticFiles
+    ui_dir = Path(__file__).resolve().parent.parent / "ui"
+    if ui_dir.exists():
+        app.mount("/ui", StaticFiles(directory=str(ui_dir), html=True), name="ui")
 
     return app
 
