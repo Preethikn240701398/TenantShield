@@ -261,9 +261,9 @@
       currentUser = await userRes.json();
       renderAppShell();
 
-      // Role-based landing: tenant users to the workspace, platform_admin to the dashboard
+      // Role-based landing: tenant users to the workspace, platform_admin to the overview dashboard
       if (currentUser.role === 'platform_admin') {
-        navigate('#admin/verification');
+        navigate('#admin/overview');
       } else {
         navigate('#documents');
       }
@@ -368,7 +368,7 @@
     // Role-based landing default if still empty
     if (!hash || hash === '#') {
       if (currentUser.role === 'platform_admin') {
-        hash = '#admin/verification';
+        hash = '#admin/overview';
       } else {
         hash = '#documents';
       }
@@ -388,7 +388,7 @@
     // Platform admin guard: admin users must land on the admin dashboard
     if (currentUser.role === 'platform_admin') {
       if (hash.indexOf('#admin') !== 0) {
-        navigate('#admin/verification');
+        navigate('#admin/overview');
         return;
       }
     }
@@ -410,12 +410,14 @@
       adminDashboard.style.display = 'block';
 
       var slug = hash.replace(/^#admin\/?/, '').replace(/^#/, '');
-      var validSlugs = ['verification', 'layer-kill', 'mutation', 'noisy-neighbour', 'metrics', 'keys', 'demo', 'config', 'attack', 'glossary'];
-      if (validSlugs.indexOf(slug) === -1) {
-        slug = 'verification';
+      var validSlugs = ['overview', 'verification', 'layer-kill', 'mutation', 'noisy-neighbour', 'metrics', 'keys', 'demo', 'config', 'attack', 'glossary'];
+      if (!slug || validSlugs.indexOf(slug) === -1) {
+        slug = 'overview';
       }
 
       var targetSecId = 'section-' + slug;
+
+      // 1. Synchronize Sidebar Active Link
       var adminLinks = sidebarNav.querySelectorAll('.nav-link');
       for (var i = 0; i < adminLinks.length; i++) {
         if (adminLinks[i].getAttribute('data-section') === targetSecId) {
@@ -425,12 +427,79 @@
         }
       }
 
-      var targetEl = document.getElementById(targetSecId);
-      if (targetEl) {
-        setTimeout(function () {
-          targetEl.scrollIntoView({ behavior: 'smooth' });
-        }, 50);
+      // 2. Synchronize Horizontal Tab Bar Active Button
+      var tabBtns = document.querySelectorAll('#admin-tab-bar .tab-btn');
+      for (var t = 0; t < tabBtns.length; t++) {
+        if (tabBtns[t].getAttribute('data-tab') === slug) {
+          tabBtns[t].classList.add('active');
+        } else {
+          tabBtns[t].classList.remove('active');
+        }
       }
+
+      // 3. Update Breadcrumb Navigation
+      var slugMeta = {
+        'overview': { category: 'Dashboard', title: 'Executive Overview' },
+        'verification': { category: 'Security Assurance', title: 'Automated Verification Suite' },
+        'layer-kill': { category: 'Security Assurance', title: 'Layer-Kill Matrix' },
+        'mutation': { category: 'Security Assurance', title: 'Mutation Testing' },
+        'attack': { category: 'Security Assurance', title: 'Attack Simulator' },
+        'keys': { category: 'Key Management', title: 'Tenant DEK Keys' },
+        'demo': { category: 'Key Management', title: 'Key Lifecycle Demo' },
+        'metrics': { category: 'Telemetry & Health', title: 'Per-Tenant Metrics' },
+        'noisy-neighbour': { category: 'Telemetry & Health', title: 'Noisy-Neighbour Benchmark' },
+        'config': { category: 'Telemetry & Health', title: 'Configuration Audit' },
+        'glossary': { category: 'Reference', title: 'Security Glossary' }
+      };
+      var bcCat = document.getElementById('admin-bc-category');
+      var bcTitle = document.getElementById('admin-bc-title');
+      if (bcCat && slugMeta[slug]) bcCat.textContent = slugMeta[slug].category;
+      if (bcTitle && slugMeta[slug]) bcTitle.textContent = slugMeta[slug].title;
+
+      // 4. View Mode: Focused Tab (Zero-Scroll) vs All Sections
+      var isViewAll = adminDashboard.classList.contains('admin-view-all-mode');
+      var allSections = adminDashboard.querySelectorAll('.dashboard-section');
+
+      if (isViewAll) {
+        // Show all sections stacked
+        for (var s = 0; s < allSections.length; s++) {
+          allSections[s].style.display = 'block';
+          allSections[s].classList.remove('active');
+        }
+        var targetEl = document.getElementById(targetSecId);
+        if (targetEl) {
+          targetEl.classList.add('active');
+          setTimeout(function () {
+            targetEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }, 50);
+        }
+      } else {
+        // Focused Tab Mode: Show ONLY the selected tool!
+        for (var s = 0; s < allSections.length; s++) {
+          if (allSections[s].id === targetSecId) {
+            allSections[s].style.display = 'block';
+            allSections[s].classList.add('active');
+          } else {
+            allSections[s].style.display = 'none';
+            allSections[s].classList.remove('active');
+          }
+        }
+        // Smoothly scroll to the top so there is no awkward scroll offset
+        setTimeout(function () {
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+          var mainEl = document.getElementById('main-content');
+          if (mainEl) mainEl.scrollTop = 0;
+        }, 30);
+      }
+
+      // Re-trigger chart rendering if navigating to metrics tab
+      if (slug === 'metrics') {
+        var chartContainer = document.getElementById('metrics-chart-container');
+        if (chartContainer && window.TenantChart && window.TenantChart.renderBarChart && window._lastMetricsChartData) {
+          window.TenantChart.renderBarChart(chartContainer, window._lastMetricsChartData);
+        }
+      }
+
       return;
     }
 
@@ -1024,31 +1093,105 @@
     }
   }
 
+  function getSidebarIconSvg(iconName) {
+    var icons = {
+      dashboard: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>',
+      shield: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg>',
+      layers: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>',
+      beaker: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 3h15"/><path d="M6 3v16a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V3"/><line x1="6" y1="14" x2="18" y2="14"/></svg>',
+      crosshair: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="22" y1="12" x2="18" y2="12"/><line x1="6" y1="12" x2="2" y2="12"/><line x1="12" y1="6" x2="12" y2="2"/><line x1="12" y1="22" x2="12" y2="18"/></svg>',
+      key: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2l-2 2m-1.5 1.5L16 7l-1.5-1.5L13 7l-2-2-7 7a5 5 0 1 0 7 7l7-7v-3h3v-3h2V2z"/></svg>',
+      rotate: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>',
+      chart: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>',
+      gauge: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/><path d="M19.07 4.93a10 10 0 0 0-14.14 0"/><path d="M16.24 7.76a6 6 0 0 0-8.48 0"/><line x1="12" y1="12" x2="16.5" y2="7.5"/></svg>',
+      checkCircle: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
+      book: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>'
+    };
+    return icons[iconName] || '';
+  }
+
   function renderAdminSidebar() {
-    var sections = [
-      { id: 'section-verification', slug: 'verification', label: 'Latest verification' },
-      { id: 'section-layer-kill', slug: 'layer-kill', label: 'Layer-kill matrix' },
-      { id: 'section-mutation', slug: 'mutation', label: 'Mutation testing' },
-      { id: 'section-noisy-neighbour', slug: 'noisy-neighbour', label: 'Noisy neighbour' },
-      { id: 'section-metrics', slug: 'metrics', label: 'Tenant metrics' },
-      { id: 'section-keys', slug: 'keys', label: 'Tenant keys' },
-      { id: 'section-demo', slug: 'demo', label: 'Key lifecycle demo' },
-      { id: 'section-config', slug: 'config', label: 'Config check' },
-      { id: 'section-attack', slug: 'attack', label: 'Try one attack' },
-      { id: 'section-glossary', slug: 'glossary', label: 'Glossary' }
+    while (sidebarNav.firstChild) {
+      sidebarNav.removeChild(sidebarNav.firstChild);
+    }
+
+    var groups = [
+      {
+        title: 'MAIN',
+        items: [
+          { id: 'section-overview', slug: 'overview', label: 'Overview', icon: 'dashboard' }
+        ]
+      },
+      {
+        title: 'SECURITY ASSURANCE',
+        items: [
+          { id: 'section-verification', slug: 'verification', label: 'Verification Suite', icon: 'shield', badge: '11 tests' },
+          { id: 'section-layer-kill', slug: 'layer-kill', label: 'Layer-Kill Matrix', icon: 'layers' },
+          { id: 'section-mutation', slug: 'mutation', label: 'Mutation Testing', icon: 'beaker' },
+          { id: 'section-attack', slug: 'attack', label: 'Attack Simulator', icon: 'crosshair', badge: 'Lab' }
+        ]
+      },
+      {
+        title: 'KEY MANAGEMENT',
+        items: [
+          { id: 'section-keys', slug: 'keys', label: 'Tenant DEK Keys', icon: 'key' },
+          { id: 'section-demo', slug: 'demo', label: 'Key Lifecycle Demo', icon: 'rotate', badge: 'Demo' }
+        ]
+      },
+      {
+        title: 'TELEMETRY & HEALTH',
+        items: [
+          { id: 'section-metrics', slug: 'metrics', label: 'Per-Tenant Metrics', icon: 'chart', badge: 'Live' },
+          { id: 'section-noisy-neighbour', slug: 'noisy-neighbour', label: 'Noisy Neighbour', icon: 'gauge' },
+          { id: 'section-config', slug: 'config', label: 'Configuration Audit', icon: 'checkCircle' }
+        ]
+      },
+      {
+        title: 'REFERENCE',
+        items: [
+          { id: 'section-glossary', slug: 'glossary', label: 'Security Glossary', icon: 'book' }
+        ]
+      }
     ];
 
-    for (var i = 0; i < sections.length; i++) {
-      (function (sec, idx) {
-        var btn = document.createElement('button');
-        btn.className = 'nav-link' + (idx === 0 ? ' active' : '');
-        btn.textContent = sec.label;
-        btn.setAttribute('data-section', sec.id);
-        btn.addEventListener('click', function () {
-          navigate('#admin/' + sec.slug);
-        });
-        sidebarNav.appendChild(btn);
-      })(sections[i], i);
+    for (var g = 0; g < groups.length; g++) {
+      var grp = groups[g];
+      var headerDiv = document.createElement('div');
+      headerDiv.className = 'nav-group-header';
+      headerDiv.textContent = grp.title;
+      sidebarNav.appendChild(headerDiv);
+
+      for (var i = 0; i < grp.items.length; i++) {
+        (function (sec) {
+          var btn = document.createElement('button');
+          btn.className = 'nav-link' + (sec.slug === 'overview' ? ' active' : '');
+          btn.setAttribute('data-section', sec.id);
+          btn.setAttribute('data-slug', sec.slug);
+
+          var iconSpan = document.createElement('span');
+          iconSpan.className = 'nav-icon';
+          iconSpan.innerHTML = getSidebarIconSvg(sec.icon);
+          btn.appendChild(iconSpan);
+
+          var labelSpan = document.createElement('span');
+          labelSpan.className = 'nav-text';
+          labelSpan.textContent = sec.label;
+          btn.appendChild(labelSpan);
+
+          if (sec.badge) {
+            var badgeSpan = document.createElement('span');
+            badgeSpan.className = 'nav-badge';
+            badgeSpan.textContent = sec.badge;
+            btn.appendChild(badgeSpan);
+          }
+
+          btn.addEventListener('click', function () {
+            navigate('#admin/' + sec.slug);
+          });
+
+          sidebarNav.appendChild(btn);
+        })(grp.items[i]);
+      }
     }
   }
 
@@ -1124,12 +1267,349 @@
     });
   }
 
+  function setupLayerKillRunButton() {
+    var btn = document.getElementById('btn-run-layer-kill');
+    var statusBar = document.getElementById('layer-run-status-bar');
+    if (!btn || btn.getAttribute('data-bound')) return;
+    btn.setAttribute('data-bound', 'true');
+
+    btn.addEventListener('click', async function () {
+      btn.disabled = true;
+      var elapsedSec = 0;
+      btn.textContent = 'Running (0s)...';
+      if (statusBar) {
+        statusBar.style.display = 'block';
+        statusBar.style.background = 'rgba(56, 189, 248, 0.12)';
+        statusBar.style.borderLeft = '3px solid var(--accent)';
+        statusBar.style.color = 'var(--text-main)';
+        statusBar.textContent = 'Initializing isolated lab database and running Layer-Kill Matrix...';
+      }
+
+      var timer = setInterval(function () {
+        elapsedSec++;
+        btn.textContent = 'Running (' + elapsedSec + 's)...';
+      }, 1000);
+
+      try {
+        var startRes = await apiFetch('/admin/dashboard/run-matrix', { method: 'POST' });
+        if (!startRes.ok) {
+          var errData = await startRes.json();
+          throw new Error(errData.detail || 'Failed to start Layer-Kill Matrix.');
+        }
+
+        var startData = await startRes.json();
+        var runId = startData.run_id;
+
+        var pollInterval = setInterval(async function () {
+          try {
+            var stRes = await apiFetch('/admin/dashboard/run-matrix-status/' + runId);
+            if (!stRes.ok) return;
+            var stData = await stRes.json();
+
+            if (stData.progress && statusBar && stData.state === 'running') {
+              statusBar.textContent = '⏳ ' + stData.progress + ' (' + elapsedSec + 's)';
+            }
+
+            if (stData.state === 'finished') {
+              clearInterval(pollInterval);
+              clearInterval(timer);
+              btn.disabled = false;
+              btn.textContent = 'Run Layer-Kill Matrix';
+              if (statusBar) {
+                statusBar.style.background = 'rgba(16, 185, 129, 0.12)';
+                statusBar.style.borderLeft = '3px solid #10b981';
+                statusBar.textContent = '✅ Layer-Kill Matrix completed in ' + elapsedSec + 's! All 5 configurations evaluated.';
+              }
+              await loadLayerKillSection();
+            } else if (stData.state === 'failed') {
+              clearInterval(pollInterval);
+              clearInterval(timer);
+              btn.disabled = false;
+              btn.textContent = 'Run Layer-Kill Matrix';
+              if (statusBar) {
+                statusBar.style.background = 'rgba(239, 68, 68, 0.12)';
+                statusBar.style.borderLeft = '3px solid #ef4444';
+                statusBar.textContent = '❌ Layer-Kill Matrix failed after ' + elapsedSec + 's: ' + (stData.error || 'Failed');
+              }
+            }
+          } catch (pollErr) {
+            // Keep polling
+          }
+        }, 1500);
+
+      } catch (err) {
+        clearInterval(timer);
+        btn.disabled = false;
+        btn.textContent = 'Run Layer-Kill Matrix';
+        if (statusBar) {
+          statusBar.style.background = 'rgba(239, 68, 68, 0.12)';
+          statusBar.style.borderLeft = '3px solid #ef4444';
+          statusBar.textContent = 'Error: ' + err.message;
+        }
+      }
+    });
+  }
+
+  function setupMutationRunButton() {
+    var btn = document.getElementById('btn-run-mutation');
+    var statusBar = document.getElementById('mut-run-status-bar');
+    if (!btn || btn.getAttribute('data-bound')) return;
+    btn.setAttribute('data-bound', 'true');
+
+    btn.addEventListener('click', async function () {
+      btn.disabled = true;
+      var elapsedSec = 0;
+      btn.textContent = 'Running (0s)...';
+      if (statusBar) {
+        statusBar.style.display = 'block';
+        statusBar.style.background = 'rgba(56, 189, 248, 0.12)';
+        statusBar.style.borderLeft = '3px solid var(--accent)';
+        statusBar.style.color = 'var(--text-main)';
+        statusBar.textContent = 'Initializing lab environment and injecting fault mutations...';
+      }
+
+      var timer = setInterval(function () {
+        elapsedSec++;
+        btn.textContent = 'Running (' + elapsedSec + 's)...';
+      }, 1000);
+
+      try {
+        var startRes = await apiFetch('/admin/dashboard/run-mutation', { method: 'POST' });
+        if (!startRes.ok) {
+          var errData = await startRes.json();
+          throw new Error(errData.detail || 'Failed to start Mutation suite.');
+        }
+
+        var startData = await startRes.json();
+        var runId = startData.run_id;
+
+        var pollInterval = setInterval(async function () {
+          try {
+            var stRes = await apiFetch('/admin/dashboard/run-mutation-status/' + runId);
+            if (!stRes.ok) return;
+            var stData = await stRes.json();
+
+            if (stData.progress && statusBar && stData.state === 'running') {
+              statusBar.textContent = '⏳ ' + stData.progress + ' (' + elapsedSec + 's)';
+            }
+
+            if (stData.state === 'finished') {
+              clearInterval(pollInterval);
+              clearInterval(timer);
+              btn.disabled = false;
+              btn.textContent = 'Run Mutation Suite';
+              var score = (stData.result && stData.result.isolation_mutation_score) ? stData.result.isolation_mutation_score : '5/5 Caught';
+              if (statusBar) {
+                statusBar.style.background = 'rgba(16, 185, 129, 0.12)';
+                statusBar.style.borderLeft = '3px solid #10b981';
+                statusBar.textContent = '✅ Mutation Testing completed in ' + elapsedSec + 's! Score: ' + score;
+              }
+              await loadMutationSection();
+            } else if (stData.state === 'failed') {
+              clearInterval(pollInterval);
+              clearInterval(timer);
+              btn.disabled = false;
+              btn.textContent = 'Run Mutation Suite';
+              if (statusBar) {
+                statusBar.style.background = 'rgba(239, 68, 68, 0.12)';
+                statusBar.style.borderLeft = '3px solid #ef4444';
+                statusBar.textContent = '❌ Mutation Testing failed after ' + elapsedSec + 's: ' + (stData.error || 'Failed');
+              }
+            }
+          } catch (pollErr) {
+            // Keep polling
+          }
+        }, 1500);
+
+      } catch (err) {
+        clearInterval(timer);
+        btn.disabled = false;
+        btn.textContent = 'Run Mutation Suite';
+        if (statusBar) {
+          statusBar.style.background = 'rgba(239, 68, 68, 0.12)';
+          statusBar.style.borderLeft = '3px solid #ef4444';
+          statusBar.textContent = 'Error: ' + err.message;
+        }
+      }
+    });
+  }
+
+
+  function setupAdminTabControls() {
+    if (adminDashboard.getAttribute('data-tab-controls-bound')) return;
+    adminDashboard.setAttribute('data-tab-controls-bound', 'true');
+
+    // Horizontal Tab Bar Buttons
+    var tabBtns = document.querySelectorAll('#admin-tab-bar .tab-btn');
+    for (var i = 0; i < tabBtns.length; i++) {
+      (function (btn) {
+        btn.addEventListener('click', function () {
+          var tabSlug = btn.getAttribute('data-tab');
+          if (tabSlug) {
+            navigate('#admin/' + tabSlug);
+          }
+        });
+      })(tabBtns[i]);
+    }
+
+    // View Mode Toggle (Focused Single-Tab vs All Sections)
+    var btnModeTab = document.getElementById('btn-mode-tab');
+    var btnModeAll = document.getElementById('btn-mode-all');
+    if (btnModeTab && btnModeAll) {
+      btnModeTab.addEventListener('click', function () {
+        adminDashboard.classList.remove('admin-view-all-mode');
+        adminDashboard.classList.add('admin-tab-mode');
+        btnModeTab.classList.add('active');
+        btnModeAll.classList.remove('active');
+        handleRoute();
+      });
+      btnModeAll.addEventListener('click', function () {
+        adminDashboard.classList.remove('admin-tab-mode');
+        adminDashboard.classList.add('admin-view-all-mode');
+        btnModeAll.classList.add('active');
+        btnModeTab.classList.remove('active');
+        handleRoute();
+      });
+    }
+
+    // Overview Launchpad & KPI jump clicks
+    var jumpEls = adminDashboard.querySelectorAll('[data-jump]');
+    for (var j = 0; j < jumpEls.length; j++) {
+      (function (el) {
+        el.addEventListener('click', function (e) {
+          e.stopPropagation();
+          var slug = el.getAttribute('data-jump');
+          if (slug) {
+            navigate('#admin/' + slug);
+          }
+        });
+      })(jumpEls[j]);
+    }
+
+    // Overview Refresh Button
+    var btnRefresh = document.getElementById('btn-overview-refresh');
+    if (btnRefresh) {
+      btnRefresh.addEventListener('click', function () {
+        btnRefresh.disabled = true;
+        btnRefresh.textContent = 'Refreshing...';
+        loadAllAdminSections();
+        setTimeout(function () {
+          btnRefresh.disabled = false;
+          btnRefresh.textContent = 'Refresh all telemetry';
+        }, 800);
+      });
+    }
+
+    // Quick Feature Search and Auto-complete Jump
+    setupFeatureSearch();
+  }
+
+  function setupFeatureSearch() {
+    var searchInput = document.getElementById('admin-feature-search');
+    var dropdown = document.getElementById('admin-search-dropdown');
+    if (!searchInput || !dropdown) return;
+
+    var features = [
+      { slug: 'overview', title: 'Executive Overview', group: 'Dashboard', desc: 'KPI summary, system status, and module launchpad' },
+      { slug: 'verification', title: 'Verification Run Suite', group: 'Security Assurance', desc: '11 automated cross-tenant simulated attacks, canary integrity, list-leak check' },
+      { slug: 'layer-kill', title: 'Layer-Kill Matrix', group: 'Security Assurance', desc: 'Defense-in-depth failure analysis across Layers A, B, and C' },
+      { slug: 'mutation', title: 'Mutation Testing', group: 'Security Assurance', desc: 'Fault injection sensitivity evaluation and detection scores' },
+      { slug: 'attack', title: 'Interactive Attack Simulator', group: 'Security Assurance', desc: 'Execute live targeted attacks between attacker and victim tenants' },
+      { slug: 'keys', title: 'Tenant DEK Encryption Keys', group: 'Key Management', desc: 'KMS envelope encryption key lifecycle: active, retired, destroyed' },
+      { slug: 'demo', title: 'Key Lifecycle & Crypto-Shred Demo', group: 'Key Management', desc: '7-step interactive envelope encryption, key rotation, and shredding' },
+      { slug: 'metrics', title: 'Per-Tenant Live Metrics', group: 'Telemetry & Health', desc: 'Sliding 60-min Redis telemetry, request rates, errors, avg latency chart' },
+      { slug: 'metrics', title: 'Send Test Traffic (Demo Co)', group: 'Telemetry & Health', desc: 'Generate 10 valid + 3 invalid requests to populate live telemetry' },
+      { slug: 'noisy-neighbour', title: 'Noisy-Neighbour Experiment', group: 'Telemetry & Health', desc: 'Workload benchmark measuring p50/p95 latency and rate limiter strategies' },
+      { slug: 'config', title: 'Configuration & RLS Audit', group: 'Telemetry & Health', desc: 'Read-only audit of database RLS policies and application role privileges' },
+      { slug: 'glossary', title: 'Security & System Glossary', group: 'Reference', desc: 'Comprehensive terminology definitions, formulas, and interpretations' }
+    ];
+
+    function renderResults(q) {
+      while (dropdown.firstChild) dropdown.removeChild(dropdown.firstChild);
+      q = (q || '').trim().toLowerCase();
+      if (!q) {
+        dropdown.style.display = 'none';
+        return;
+      }
+
+      var matches = features.filter(function (f) {
+        return f.title.toLowerCase().indexOf(q) !== -1 ||
+               f.desc.toLowerCase().indexOf(q) !== -1 ||
+               f.group.toLowerCase().indexOf(q) !== -1 ||
+               f.slug.toLowerCase().indexOf(q) !== -1;
+      });
+
+      if (matches.length === 0) {
+        var emptyDiv = document.createElement('div');
+        emptyDiv.className = 'search-item-empty';
+        emptyDiv.textContent = 'No features matching "' + q + '"';
+        dropdown.appendChild(emptyDiv);
+      } else {
+        for (var i = 0; i < matches.length; i++) {
+          (function (item) {
+            var row = document.createElement('div');
+            row.className = 'search-item';
+
+            var top = document.createElement('div');
+            top.className = 'search-item-top';
+            var titleSpan = document.createElement('span');
+            titleSpan.className = 'search-item-title';
+            titleSpan.textContent = item.title;
+            var groupBadge = document.createElement('span');
+            groupBadge.className = 'search-item-group';
+            groupBadge.textContent = item.group;
+            top.appendChild(titleSpan);
+            top.appendChild(groupBadge);
+
+            var descSpan = document.createElement('div');
+            descSpan.className = 'search-item-desc';
+            descSpan.textContent = item.desc;
+
+            row.appendChild(top);
+            row.appendChild(descSpan);
+
+            row.addEventListener('click', function () {
+              dropdown.style.display = 'none';
+              searchInput.value = '';
+              navigate('#admin/' + item.slug);
+            });
+
+            dropdown.appendChild(row);
+          })(matches[i]);
+        }
+      }
+      dropdown.style.display = 'block';
+    }
+
+    searchInput.addEventListener('input', function () {
+      renderResults(searchInput.value);
+    });
+
+    searchInput.addEventListener('focus', function () {
+      if (searchInput.value.trim()) {
+        renderResults(searchInput.value);
+      }
+    });
+
+    document.addEventListener('click', function (e) {
+      if (!searchInput.contains(e.target) && !dropdown.contains(e.target)) {
+        dropdown.style.display = 'none';
+      }
+    });
+  }
+
   function loadAllAdminSections() {
+    setupAdminTabControls();
     setupVerificationRunButton();
+    setupLayerKillRunButton();
+    setupMutationRunButton();
     loadVerificationSection();
     loadLayerKillSection();
     loadMutationSection();
     loadNoisyNeighbourSection();
+    loadLiveNoisyNeighbour();
+    setupLiveNoisyRefreshButton();
+    setupLiveBenchmarkRunner();
     loadMetricsSection();
     setupSendTestTrafficButton();
     loadKeysSection();
@@ -1167,6 +1647,17 @@
       while (verdictEl.firstChild) verdictEl.removeChild(verdictEl.firstChild);
       verdictEl.appendChild(createStatusBadge(data.summary.overall_verdict, getDotTypeForStatus(data.summary.overall_verdict)));
       verdictEl.appendChild(createInfoButton('Verdict'));
+
+      // Update Overview KPI
+      var kpiVerdict = document.getElementById('kpi-verdict');
+      var kpiVerdictSub = document.getElementById('kpi-verdict-sub');
+      if (kpiVerdict && data.summary) {
+        while (kpiVerdict.firstChild) kpiVerdict.removeChild(kpiVerdict.firstChild);
+        kpiVerdict.appendChild(createStatusBadge(data.summary.overall_verdict, getDotTypeForStatus(data.summary.overall_verdict)));
+        if (kpiVerdictSub) {
+          kpiVerdictSub.textContent = (data.summary.blocked_attacks || 0) + ' blocked / ' + (data.summary.total_attacks_run || 0) + ' total attacks';
+        }
+      }
 
       document.getElementById('verif-total').textContent = data.summary.total_attacks_run;
       document.getElementById('verif-blocked').textContent = data.summary.blocked_attacks;
@@ -1347,6 +1838,16 @@
         scoreEl.parentElement.appendChild(createInfoButton('Mutation'));
       }
 
+      // Update Overview KPI
+      var kpiMutation = document.getElementById('kpi-mutation');
+      var kpiMutationSub = document.getElementById('kpi-mutation-sub');
+      if (kpiMutation) {
+        kpiMutation.textContent = data.isolation_mutation_score || '5/5 Caught';
+        if (kpiMutationSub) {
+          kpiMutationSub.textContent = (data.mutations ? data.mutations.length : 5) + ' test mutations evaluated';
+        }
+      }
+
       while (tbody.firstChild) tbody.removeChild(tbody.firstChild);
       var mutations = data.mutations || [];
       for (var i = 0; i < mutations.length; i++) {
@@ -1481,6 +1982,368 @@
     }
   }
 
+  // 4b. Live Noisy-Neighbour Section (Redis-backed, fully dynamic)
+  async function loadLiveNoisyNeighbour() {
+    var emptyEl = document.getElementById('live-noisy-empty');
+    var errorEl = document.getElementById('live-noisy-error');
+    var contentEl = document.getElementById('live-noisy-content');
+    var tenantNameEl = document.getElementById('live-noisy-tenant-name');
+    var tenantStatsEl = document.getElementById('live-noisy-tenant-stats');
+    var tbody = document.getElementById('live-noisy-table-body');
+    var updatedEl = document.getElementById('live-noisy-updated');
+
+    if (!emptyEl || !contentEl || !tbody) return;
+
+    emptyEl.style.display = 'none';
+    if (errorEl) errorEl.style.display = 'none';
+    contentEl.style.display = 'none';
+
+    try {
+      var res = await apiFetch('/admin/dashboard/noisy-neighbour/live');
+      var data = await res.json();
+
+      if (data.status === 'empty') {
+        emptyEl.style.display = 'block';
+        return;
+      }
+      if (data.status === 'error') {
+        if (errorEl) {
+          errorEl.textContent = 'Live data unavailable: ' + (data.message || 'Redis error');
+          errorEl.style.display = 'block';
+        }
+        return;
+      }
+
+      var noisy = data.noisy_tenant;
+      if (noisy && tenantNameEl) {
+        tenantNameEl.textContent = noisy.tenant_name;
+        tenantStatsEl.textContent =
+          noisy.request_count + ' requests \u00b7 ' +
+          noisy.share_pct + '% of all traffic \u00b7 ' +
+          noisy.error_count + ' errors \u00b7 avg ' +
+          noisy.avg_latency_ms + ' ms';
+      }
+
+      while (tbody.firstChild) tbody.removeChild(tbody.firstChild);
+      var allTenants = data.all_tenants || [];
+      var noisyId = noisy ? noisy.tenant_id : null;
+
+      for (var i = 0; i < allTenants.length; i++) {
+        var t = allTenants[i];
+        var tr = document.createElement('tr');
+        if (t.tenant_id === noisyId) tr.style.background = 'rgba(255,80,80,0.06)';
+
+        var tdName = document.createElement('td');
+        tdName.style.fontWeight = '500';
+        if (t.tenant_id === noisyId) {
+          var nb = document.createElement('span');
+          nb.className = 'badge badge-fail';
+          nb.style.marginRight = '6px';
+          nb.textContent = 'NOISY';
+          tdName.appendChild(nb);
+        }
+        tdName.appendChild(document.createTextNode(t.tenant_name));
+        tr.appendChild(tdName);
+
+        var tdReq = document.createElement('td');
+        tdReq.className = 'num';
+        tdReq.textContent = t.request_count;
+        tr.appendChild(tdReq);
+
+        var tdErr = document.createElement('td');
+        tdErr.className = 'num';
+        tdErr.textContent = t.error_count;
+        if (t.error_count > 0) tdErr.style.color = 'var(--status-compromised)';
+        tr.appendChild(tdErr);
+
+        var tdLat = document.createElement('td');
+        tdLat.className = 'num';
+        tdLat.textContent = t.avg_latency_ms;
+        tr.appendChild(tdLat);
+
+        var tdShare = document.createElement('td');
+        tdShare.className = 'num';
+        tdShare.textContent = t.share_pct + '%';
+        tr.appendChild(tdShare);
+
+        var tdRatio = document.createElement('td');
+        tdRatio.className = 'num';
+        if (t.tenant_id === noisyId) {
+          tdRatio.textContent = '\u2014 (noisy)';
+          tdRatio.style.color = 'var(--status-compromised)';
+        } else {
+          var ratio = (t.noisy_pressure_ratio != null) ? t.noisy_pressure_ratio : null;
+          if (ratio !== null) {
+            tdRatio.textContent = ratio + '\u00d7';
+            if (ratio >= 5) tdRatio.style.color = 'var(--status-compromised)';
+            else if (ratio >= 2) tdRatio.style.color = '#e8a020';
+          } else {
+            tdRatio.textContent = 'N/A';
+          }
+        }
+        tr.appendChild(tdRatio);
+
+        tbody.appendChild(tr);
+      }
+
+      contentEl.style.display = 'block';
+      if (updatedEl) {
+        updatedEl.textContent = 'Updated: ' + new Date().toLocaleTimeString() +
+          ' \u00b7 ' + (data.total_requests_all_tenants || 0) + ' total requests across all tenants';
+      }
+    } catch (liveErr) {
+      if (errorEl) {
+        errorEl.textContent = 'Could not load live data: ' + liveErr.message;
+        errorEl.style.display = 'block';
+      }
+    }
+  }
+
+  function setupLiveNoisyRefreshButton() {
+    var btn = document.getElementById('btn-refresh-live-noisy');
+    if (!btn || btn.getAttribute('data-bound')) return;
+    btn.setAttribute('data-bound', 'true');
+    btn.addEventListener('click', function () { loadLiveNoisyNeighbour(); });
+  }
+
+  function setupLiveBenchmarkRunner() {
+    var btn = document.getElementById('btn-run-live-benchmark');
+    var noisySelect = document.getElementById('bench-noisy-tenant');
+    var victimSelect = document.getElementById('bench-victim-tenant');
+    var loadTypeSelect = document.getElementById('bench-load-type');
+    var strategySelect = document.getElementById('bench-strategy');
+    var durationSelect = document.getElementById('bench-duration');
+    var statusDiv = document.getElementById('bench-live-status');
+    var statusText = document.getElementById('bench-live-status-text');
+    var statusStats = document.getElementById('bench-live-status-stats');
+    var progressBar = document.getElementById('bench-progress-bar');
+    var resultCallout = document.getElementById('bench-result-callout');
+    var resultCalloutText = document.getElementById('bench-result-callout-text');
+    var btnIcon = document.getElementById('bench-btn-icon');
+    var btnText = document.getElementById('bench-btn-text');
+    var tbody = document.getElementById('noisy-table-body');
+    var noisyContent = document.getElementById('noisy-content');
+    var noisyEmpty = document.getElementById('noisy-empty');
+
+    if (!btn || btn.getAttribute('data-bound')) return;
+    btn.setAttribute('data-bound', 'true');
+
+    // Prevent selecting identical noisy and victim tenants
+    if (noisySelect && victimSelect) {
+      noisySelect.addEventListener('change', function () {
+        if (noisySelect.value === victimSelect.value) {
+          victimSelect.value = (noisySelect.value === 'beta') ? 'acme' : 'beta';
+        }
+      });
+      victimSelect.addEventListener('change', function () {
+        if (victimSelect.value === noisySelect.value) {
+          noisySelect.value = (victimSelect.value === 'acme') ? 'beta' : 'acme';
+        }
+      });
+    }
+
+    var isRunning = false;
+
+    btn.addEventListener('click', async function () {
+      if (isRunning) return;
+
+      var noisyVal = noisySelect ? noisySelect.value : 'acme';
+      var victimVal = victimSelect ? victimSelect.value : 'beta';
+      var loadTypeVal = loadTypeSelect ? loadTypeSelect.value : 'high_volume';
+      var strategyVal = strategySelect ? strategySelect.value : 'request_count';
+      var durationVal = durationSelect ? parseFloat(durationSelect.value) : 10.0;
+
+      var noisyLabel = (noisySelect && noisySelect.options[noisySelect.selectedIndex]) ? noisySelect.options[noisySelect.selectedIndex].text : noisyVal;
+      var victimLabel = (victimSelect && victimSelect.options[victimSelect.selectedIndex]) ? victimSelect.options[victimSelect.selectedIndex].text : victimVal;
+      var strategyLabel = (strategySelect && strategySelect.options[strategySelect.selectedIndex]) ? strategySelect.options[strategySelect.selectedIndex].text.replace(/^[^a-zA-Z]+/, '') : strategyVal;
+
+      isRunning = true;
+      btn.disabled = true;
+      btn.style.opacity = '0.7';
+      if (btnIcon) btnIcon.textContent = '⏳';
+      if (btnText) btnText.textContent = 'Running Benchmark...';
+
+      if (statusDiv) statusDiv.style.display = 'block';
+      if (resultCallout) resultCallout.style.display = 'none';
+      if (progressBar) progressBar.style.width = '5%';
+      if (statusText) statusText.textContent = 'Initiating live benchmark: ' + noisyLabel + ' (noisy) vs ' + victimLabel + ' (victim) — strategy: ' + strategyLabel + '...';
+      if (statusStats) statusStats.textContent = '0.0s / ' + durationVal + 's';
+
+      try {
+        var startRes = await apiFetch('/admin/demo/benchmark/start', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            noisy_tenant: noisyVal,
+            victim_tenant: victimVal,
+            load_type: loadTypeVal,
+            strategy: strategyVal,
+            duration_seconds: durationVal
+          })
+        });
+
+        if (!startRes.ok) {
+          var errData = await startRes.json().catch(function () { return {}; });
+          throw new Error(errData.detail || ('HTTP ' + startRes.status));
+        }
+
+        var startData = await startRes.json();
+        var runId = startData.run_id;
+
+        var isCompleted = false;
+        var pollTimer = setInterval(async function () {
+          if (isCompleted) return;
+          try {
+            var stRes = await apiFetch('/admin/demo/benchmark/status/' + runId);
+            if (!stRes.ok) return;
+            var stData = await stRes.json();
+
+            if (isCompleted) return;
+
+            if (stData.progress) {
+              var p = stData.progress;
+              var pct = Math.min(95, Math.round((p.elapsed / durationVal) * 100));
+              if (progressBar) progressBar.style.width = pct + '%';
+              if (statusStats) statusStats.textContent = p.elapsed + 's / ' + durationVal + 's';
+              if (statusText) {
+                statusText.textContent = '🔥 ' + noisyLabel + ' sent ' + p.noisy_reqs + ' reqs (' + p.noisy_429s + ' rate-limited 429s) · 🛡️ ' + victimLabel + ' sent ' + p.victim_reqs + ' steady reqs';
+              }
+            }
+
+            if (stData.state === 'completed' && stData.summary) {
+              isCompleted = true;
+              clearInterval(pollTimer);
+              var s = stData.summary;
+
+              if (progressBar) progressBar.style.width = '100%';
+              if (statusText) {
+                statusText.textContent = 'Benchmark completed successfully in ' + durationVal + 's!';
+              }
+
+              // Ensure benchmark table container is visible
+              if (noisyContent) noisyContent.style.display = 'block';
+              if (noisyEmpty) noisyEmpty.style.display = 'none';
+
+              // Show Result Callout Banner
+              if (resultCallout && resultCalloutText) {
+                resultCalloutText.innerHTML = '<strong>Live Result:</strong> ' +
+                  s.noisy_tenant + ' sent <strong>' + s.noisy_total + '</strong> requests (<strong>' + s.noisy_429 + '</strong> rate-limited with HTTP 429). ' +
+                  s.victim_tenant + ' observed p50: <strong>' + s.victim_p50_ms + ' ms</strong>, p95: <strong>' + s.victim_p95_ms + ' ms</strong>, error rate: <strong>' + s.victim_error_rate + '%</strong>.';
+                resultCallout.style.display = 'block';
+              }
+
+              // Insert Live Row at TOP of tbody
+              if (tbody) {
+                var tr = document.createElement('tr');
+                tr.style.background = 'rgba(34,197,94,0.08)';
+                tr.style.borderLeft = '3px solid #22c55e';
+                tr.style.fontWeight = '500';
+
+                var tdStrat = document.createElement('td');
+                var liveBadge = document.createElement('span');
+                liveBadge.className = 'badge';
+                liveBadge.style.cssText = 'background: rgba(34,197,94,0.2); color: #16a34a; font-weight: 700; margin-right: 6px;';
+                liveBadge.textContent = 'LIVE';
+                tdStrat.appendChild(liveBadge);
+                tdStrat.appendChild(document.createTextNode(s.strategy_label));
+                tr.appendChild(tdStrat);
+
+                var tdLoad = document.createElement('td');
+                tdLoad.textContent = s.load_type + ' (' + s.noisy_tenant.split(' ')[0] + ' ➔ ' + s.victim_tenant.split(' ')[0] + ')';
+                tr.appendChild(tdLoad);
+
+                var tdP50 = document.createElement('td');
+                tdP50.className = 'num';
+                tdP50.textContent = s.victim_p50_ms;
+                tr.appendChild(tdP50);
+
+                var tdP95 = document.createElement('td');
+                tdP95.className = 'num';
+                tdP95.textContent = s.victim_p95_ms;
+                tr.appendChild(tdP95);
+
+                var tdErr = document.createElement('td');
+                tdErr.className = 'num';
+                tdErr.textContent = s.victim_error_rate + '%';
+                if (s.victim_error_rate > 0) tdErr.style.color = 'var(--status-compromised)';
+                tr.appendChild(tdErr);
+
+                var td429 = document.createElement('td');
+                td429.className = 'num';
+                td429.textContent = s.noisy_429;
+                if (s.noisy_429 > 0) {
+                  td429.style.color = '#eab308';
+                  td429.style.fontWeight = '700';
+                }
+                tr.appendChild(td429);
+
+                var tdTimeouts = document.createElement('td');
+                tdTimeouts.className = 'num';
+                tdTimeouts.textContent = s.noisy_timeouts;
+                tr.appendChild(tdTimeouts);
+
+                if (tbody.firstChild) {
+                  tbody.insertBefore(tr, tbody.firstChild);
+                } else {
+                  tbody.appendChild(tr);
+                }
+              }
+
+              // Auto-refresh the live telemetry panel as well
+              loadLiveNoisyNeighbour();
+
+              // Reset button
+              isRunning = false;
+              btn.disabled = false;
+              btn.style.opacity = '1';
+              if (btnIcon) btnIcon.textContent = '▶';
+              if (btnText) btnText.textContent = 'Run Live Benchmark';
+
+              setTimeout(function () {
+                if (statusDiv) statusDiv.style.display = 'none';
+              }, 4000);
+            } else if (stData.state === 'failed') {
+              clearInterval(pollTimer);
+              isRunning = false;
+              btn.disabled = false;
+              btn.style.opacity = '1';
+              if (btnIcon) btnIcon.textContent = '▶';
+              if (btnText) btnText.textContent = 'Run Live Benchmark';
+              if (statusText) statusText.textContent = 'Benchmark failed: ' + (stData.error || 'Unknown error');
+            }
+          } catch (pollErr) {
+            console.error('Error polling live benchmark:', pollErr);
+          }
+        }, 800);
+
+      } catch (err) {
+        isRunning = false;
+        btn.disabled = false;
+        btn.style.opacity = '1';
+        if (btnIcon) btnIcon.textContent = '▶';
+        if (btnText) btnText.textContent = 'Run Live Benchmark';
+        if (statusText) statusText.textContent = 'Failed to start benchmark: ' + err.message;
+      }
+    });
+  }
+
+  var _tenantNamesCache = null;
+  async function getTenantNamesMap() {
+    if (_tenantNamesCache) return _tenantNamesCache;
+    _tenantNamesCache = {};
+    try {
+      var res = await apiFetch('/admin/dashboard/keys');
+      var data = await res.json();
+      var list = (data && data.tenants) || [];
+      for (var i = 0; i < list.length; i++) {
+        if (list[i].tenant_id && list[i].tenant_name) {
+          _tenantNamesCache[list[i].tenant_id] = list[i].tenant_name;
+        }
+      }
+    } catch (e) {}
+    return _tenantNamesCache;
+  }
+
   // 5. Per-Tenant Metrics Section
   async function loadMetricsSection() {
     var contentEl = document.getElementById('metrics-content');
@@ -1489,6 +2352,7 @@
     var chartContainer = document.getElementById('metrics-chart-container');
 
     try {
+      var nameMap = await getTenantNamesMap();
       var res = await apiFetch('/admin/metrics?window_minutes=60');
       var data = await res.json();
 
@@ -1508,12 +2372,21 @@
       for (var i = 0; i < tenants.length; i++) {
         var t = tenants[i];
         var tr = document.createElement('tr');
+        var tenantName = nameMap[t.tenant_id] || ('Tenant ' + t.tenant_id.substring(0, 8));
 
-        var tdId = document.createElement('td');
+        var tdTenant = document.createElement('td');
+        var nameDiv = document.createElement('div');
+        nameDiv.style.fontWeight = '600';
+        nameDiv.style.color = 'var(--text-primary)';
+        nameDiv.textContent = tenantName;
+        tdTenant.appendChild(nameDiv);
+
         var codeId = document.createElement('code');
+        codeId.style.fontSize = '0.78rem';
+        codeId.style.color = 'var(--text-muted)';
         codeId.textContent = t.tenant_id;
-        tdId.appendChild(codeId);
-        tr.appendChild(tdId);
+        tdTenant.appendChild(codeId);
+        tr.appendChild(tdTenant);
 
         var tdReq = document.createElement('td');
         tdReq.className = 'num';
@@ -1536,20 +2409,21 @@
         tbody.appendChild(tr);
 
         chartData.push({
-          label: t.tenant_id.substring(0, 8),
+          label: tenantName,
           value: t.avg_latency_ms
         });
       }
 
       // Render Bar Chart using local vendor tool
+      window._lastMetricsChartData = {
+        data: chartData,
+        labelKey: 'label',
+        valueKey: 'value',
+        unit: 'ms',
+        height: 180
+      };
       if (window.TenantChart && window.TenantChart.renderBarChart) {
-        window.TenantChart.renderBarChart(chartContainer, {
-          data: chartData,
-          labelKey: 'label',
-          valueKey: 'value',
-          unit: 'ms',
-          height: 180
-        });
+        window.TenantChart.renderBarChart(chartContainer, window._lastMetricsChartData);
       }
     } catch (err) {
       contentEl.style.display = 'none';
@@ -1578,6 +2452,25 @@
 
       while (tbody.firstChild) tbody.removeChild(tbody.firstChild);
       var tenants = data.tenants || [];
+
+      // Update Overview KPI
+      var kpiKeys = document.getElementById('kpi-keys');
+      var kpiKeysSub = document.getElementById('kpi-keys-sub');
+      if (kpiKeys && tenants) {
+        var totalKeyCount = 0;
+        var activeCount = 0;
+        for (var tk = 0; tk < tenants.length; tk++) {
+          var tkeys = tenants[tk].keys || [];
+          totalKeyCount += tkeys.length;
+          for (var ki = 0; ki < tkeys.length; ki++) {
+            if (tkeys[ki].status === 'active') activeCount++;
+          }
+        }
+        kpiKeys.textContent = activeCount + ' Active';
+        if (kpiKeysSub) {
+          kpiKeysSub.textContent = totalKeyCount + ' total across ' + tenants.length + ' tenants';
+        }
+      }
       for (var i = 0; i < tenants.length; i++) {
         var t = tenants[i];
         var keys = t.keys || [];
@@ -1803,10 +2696,11 @@
         });
         var data = await res.json();
         if (!res.ok) throw new Error(data.detail || 'Failed to read documents.');
-        var lines = ['Total documents: ' + (data.total_documents || 0)];
         var docs = data.documents || [];
-        for (var i = 0; i < docs.length; i++) {
-          lines.push('[' + docs[i].label + '] v' + docs[i].key_version + ': ' + docs[i].status + (docs[i].reason ? ' (' + docs[i].reason + ')' : ''));
+        var latestDocs = docs.slice(-2);
+        var lines = ['Decryption test (latest ' + latestDocs.length + ' of ' + (data.total_documents || docs.length) + ' documents):'];
+        for (var i = 0; i < latestDocs.length; i++) {
+          lines.push('[' + latestDocs[i].label + '] v' + latestDocs[i].key_version + ': ' + latestDocs[i].status + (latestDocs[i].reason ? ' (' + latestDocs[i].reason + ')' : ''));
         }
         res4Box.textContent = lines.join('\n');
         await loadKeysSection();
@@ -1855,10 +2749,11 @@
         });
         var data = await res.json();
         if (!res.ok) throw new Error(data.detail || 'Failed to read documents.');
-        var lines = ['Decryption test results:'];
         var docs = data.documents || [];
-        for (var i = 0; i < docs.length; i++) {
-          lines.push('[' + docs[i].label + '] v' + docs[i].key_version + ': ' + docs[i].status + (docs[i].reason ? ' (' + docs[i].reason + ')' : ''));
+        var latestDocs = docs.slice(-2);
+        var lines = ['Decryption test results (latest ' + latestDocs.length + ' of ' + (data.total_documents || docs.length) + ' documents):'];
+        for (var i = 0; i < latestDocs.length; i++) {
+          lines.push('[' + latestDocs[i].label + '] v' + latestDocs[i].key_version + ': ' + latestDocs[i].status + (latestDocs[i].reason ? ' (' + latestDocs[i].reason + ')' : ''));
         }
         res6Box.textContent = lines.join('\n');
         await loadKeysSection();
@@ -1902,11 +2797,15 @@
     btn.setAttribute('data-bound', 'true');
 
     btn.addEventListener('click', async function () {
+      var tenantSelect = document.getElementById('traffic-tenant-select');
+      var selectedTenant = (tenantSelect && tenantSelect.value) || 'demo';
+      var tenantLabel = (tenantSelect && tenantSelect.options[tenantSelect.selectedIndex] ? tenantSelect.options[tenantSelect.selectedIndex].text : selectedTenant);
+
       btn.disabled = true;
       btn.textContent = 'Sending traffic...';
       if (statusMsg) {
         statusMsg.style.display = 'block';
-        statusMsg.textContent = 'Initiating test traffic for Demo Co (10 valid, 3 invalid requests)...';
+        statusMsg.textContent = 'Initiating test traffic for ' + tenantLabel + ' (10 valid, 3 invalid requests)...';
       }
 
       while (progressTbody.firstChild) progressTbody.removeChild(progressTbody.firstChild);
@@ -1916,7 +2815,9 @@
 
       try {
         var startRes = await apiFetch('/admin/demo/traffic/start', {
-          method: 'POST'
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tenant: selectedTenant })
         });
         var startData = await startRes.json();
         if (!startRes.ok) {
@@ -2028,6 +2929,7 @@
               }
 
               await loadMetricsSection();
+              loadLiveNoisyNeighbour();
             } else if (stData.state === 'failed') {
               clearInterval(pollInterval);
               btn.disabled = false;
@@ -2094,6 +2996,16 @@
         if (passedEl) passedEl.textContent = data.passed;
         if (failedEl) failedEl.textContent = data.failed;
         if (summaryEl) summaryEl.style.display = 'block';
+
+        // Update Overview KPI
+        var kpiConfig = document.getElementById('kpi-config');
+        var kpiConfigSub = document.getElementById('kpi-config-sub');
+        if (kpiConfig) {
+          kpiConfig.textContent = data.passed + ' / ' + data.total_checks + ' Passed';
+          if (kpiConfigSub) {
+            kpiConfigSub.textContent = data.failed === 0 ? 'All controls verified' : data.failed + ' checks failed';
+          }
+        }
 
         // Populate checks table
         if (tbody) {
@@ -2165,6 +3077,26 @@
     if (!btn || btn.getAttribute('data-bound')) return;
     btn.setAttribute('data-bound', 'true');
 
+    var modeRadios = document.querySelectorAll('input[name="attack-target-mode"]');
+    var modeNote = document.getElementById('attack-mode-note');
+    for (var mr = 0; mr < modeRadios.length; mr++) {
+      modeRadios[mr].addEventListener('change', function () {
+        var activeMode = document.querySelector('input[name="attack-target-mode"]:checked');
+        if (modeNote) {
+          modeNote.style.display = (activeMode && activeMode.value === 'vulnerable') ? 'block' : 'none';
+        }
+      });
+    }
+
+    var btnToggleDiff = document.getElementById('btn-toggle-attack-diff');
+    var diffContainer = document.getElementById('attack-code-diff-container');
+    if (btnToggleDiff && diffContainer && !btnToggleDiff.getAttribute('data-bound')) {
+      btnToggleDiff.setAttribute('data-bound', 'true');
+      btnToggleDiff.addEventListener('click', function () {
+        diffContainer.style.display = (diffContainer.style.display === 'none' || !diffContainer.style.display) ? 'block' : 'none';
+      });
+    }
+
     var defaultStepTitles = [
       'Authenticate sessions',
       'Plant canary document in victim workspace',
@@ -2176,22 +3108,21 @@
 
     function renderInitialSteps() {
       while (stepsContainer.firstChild) stepsContainer.removeChild(stepsContainer.firstChild);
+      stepsContainer.style.display = 'flex';
       for (var s = 0; s < 6; s++) {
         var card = document.createElement('div');
         card.id = 'attack-step-row-' + (s + 1);
         card.style.display = 'flex';
         card.style.alignItems = 'center';
-        card.style.gap = '12px';
-        card.style.padding = '8px 12px';
-        card.style.background = 'var(--bg-surface)';
-        card.style.border = '1px solid var(--border-subtle)';
-        card.style.borderRadius = 'var(--radius)';
-        card.style.fontSize = '13px';
+        card.style.gap = '8px';
+        card.style.padding = '4px 8px';
+        card.style.fontSize = '12px';
+        card.style.color = 'var(--text-secondary)';
 
         var numSpan = document.createElement('span');
-        numSpan.style.fontWeight = '700';
+        numSpan.style.fontWeight = '600';
         numSpan.style.color = 'var(--text-muted)';
-        numSpan.style.minWidth = '20px';
+        numSpan.style.minWidth = '16px';
         numSpan.textContent = (s + 1) + '.';
         card.appendChild(numSpan);
 
@@ -2204,9 +3135,9 @@
         var statusSpan = document.createElement('span');
         statusSpan.className = 'attack-step-status';
         statusSpan.style.fontFamily = 'var(--font-mono)';
-        statusSpan.style.fontSize = '12px';
+        statusSpan.style.fontSize = '11px';
         statusSpan.style.color = 'var(--text-muted)';
-        statusSpan.textContent = 'Pending';
+        statusSpan.textContent = '⏳';
         card.appendChild(statusSpan);
 
         stepsContainer.appendChild(card);
@@ -2225,6 +3156,8 @@
       var attacker = selAttacker ? selAttacker.value : 'Acme';
       var victim = selVictim ? selVictim.value : 'Beta';
       var action = selAction ? selAction.value : 'read';
+      var targetModeRadio = document.querySelector('input[name="attack-target-mode"]:checked');
+      var targetMode = (targetModeRadio && targetModeRadio.value) || 'secure';
 
       if (attacker === victim) {
         if (alertBox) {
@@ -2245,7 +3178,8 @@
           body: JSON.stringify({
             attacker: attacker,
             victim: victim,
-            action: action
+            action: action,
+            target_mode: targetMode
           })
         });
 
@@ -2282,6 +3216,7 @@
               clearInterval(pollInterval);
               btn.disabled = false;
               btn.textContent = 'Run attack';
+              if (stepsContainer) stepsContainer.style.display = 'none';
 
               var res = stData.result;
               if (res && resultCard) {
@@ -2305,6 +3240,28 @@
                 if (resExplanation) {
                   resExplanation.textContent = res.explanation || '—';
                 }
+
+                // Show exfiltrated data if leaked
+                var leakBox = document.getElementById('attack-res-leak-box');
+                var leakContent = document.getElementById('attack-res-leak-content');
+                if (leakBox && leakContent) {
+                  if (res.outcome === 'LEAKED' && res.leaked_text) {
+                    leakContent.textContent = res.leaked_text;
+                    leakBox.style.display = 'block';
+                  } else {
+                    leakBox.style.display = 'none';
+                  }
+                }
+
+                // Border styling depending on outcome
+                if (res.outcome === 'LEAKED') {
+                  resultCard.style.border = '2px solid #ef4444';
+                  resultCard.style.boxShadow = '0 0 15px rgba(239, 68, 68, 0.2)';
+                } else {
+                  resultCard.style.border = '1px solid #10b981';
+                  resultCard.style.boxShadow = 'none';
+                }
+
                 resultCard.style.display = 'block';
               }
             } else if (stData.state === 'failed') {

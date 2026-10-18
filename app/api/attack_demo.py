@@ -19,6 +19,7 @@ import json
 import logging
 import os
 from pathlib import Path
+import subprocess
 import sys
 import time
 from typing import Any, Dict, List, Optional
@@ -54,6 +55,7 @@ class AttackStartRequest(BaseModel):
     attacker: str = Field(..., description="Attacking tenant: Acme, Beta, or Demo Co")
     victim: str = Field(..., description="Victim tenant: Acme, Beta, or Demo Co")
     action: str = Field(..., description="Attack action: read, update, delete, or create-into-victim")
+    target_mode: Optional[str] = Field("secure", description="secure (default) or vulnerable (flawed endpoints)")
 
 
 def _is_lab_mode() -> bool:
@@ -69,7 +71,7 @@ def _check_lab_refusal() -> None:
         )
 
 
-async def _monitor_attack_process(run_id: str, proc: asyncio.subprocess.Process, output_path: Path):
+async def _monitor_attack_process(run_id: str, proc: Any, output_path: Path):
     global _active_attack_proc, _active_attack_run_id
     try:
         await asyncio.wait_for(proc.wait(), timeout=30.0)
@@ -164,26 +166,40 @@ async def start_single_attack(
         output_path = SCRATCH_DIR / f"attack_output_{run_id}.json"
 
         script_path = Path(__file__).resolve().parent.parent.parent / "scripts" / "single_attack.py"
+        cmd = [
+            sys.executable,
+            str(script_path),
+            "--attacker",
+            req.attacker,
+            "--victim",
+            req.victim,
+            "--action",
+            req.action,
+            "--progress-file",
+            str(progress_path),
+            "--output-file",
+            str(output_path),
+            "--target-url",
+            "http://127.0.0.1:8000",
+            "--target-mode",
+            req.target_mode if req.target_mode in ("secure", "vulnerable") else "secure",
+        ]
         try:
             proc = await asyncio.create_subprocess_exec(
-                sys.executable,
-                str(script_path),
-                "--attacker",
-                req.attacker,
-                "--victim",
-                req.victim,
-                "--action",
-                req.action,
-                "--progress-file",
-                str(progress_path),
-                "--output-file",
-                str(output_path),
-                "--target-url",
-                "http://127.0.0.1:8000",
+                *cmd,
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.DEVNULL,
             )
+        except NotImplementedError:
+            from app.api.runs import PopenProcessAdapter
+            p = subprocess.Popen(
+                cmd,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            proc = PopenProcessAdapter(p)
         except Exception as exc:
+            logger.error("Failed to spawn attack process: %s", exc)
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Failed to launch attack process.",

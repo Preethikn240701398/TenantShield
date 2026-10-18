@@ -23,7 +23,7 @@ import time
 from typing import Any, Dict, List, Optional
 from uuid import UUID, uuid4
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Body, Depends, HTTPException, Request, status
 from sqlalchemy import text
 
 from app.api.deps import get_current_user
@@ -40,7 +40,7 @@ router = APIRouter(prefix="/admin/demo/traffic", tags=["Traffic Demo"])
 # In-memory registry for traffic runs
 TRAFFIC_REGISTRY: Dict[str, Dict[str, Any]] = {}
 _traffic_lock = asyncio.Lock()
-_active_traffic_proc: Optional[asyncio.subprocess.Process] = None
+_active_traffic_proc: Optional[Any] = None
 _active_traffic_run_id: Optional[str] = None
 _last_traffic_start_time: float = 0.0
 
@@ -61,20 +61,41 @@ def _check_lab_refusal() -> None:
         )
 
 
-async def _resolve_demo_tenant_id() -> UUID:
-    demo_name = os.getenv("DEMO_TENANT_NAME", getattr(settings, "DEMO_TENANT_NAME", "Demo Co"))
+async def _resolve_target_tenant(target: str = "demo") -> tuple[UUID, str, str]:
+    t = (target or "demo").strip().lower()
+    if "acme" in t:
+        name_pattern = "Acme%"
+        slug = "acme"
+        display_name = "Acme Corp"
+        canonical_key = "acme"
+    elif "beta" in t:
+        name_pattern = "Beta%"
+        slug = "beta"
+        display_name = "Beta Industries"
+        canonical_key = "beta"
+    else:
+        name_pattern = "Demo Co%"
+        slug = "demo-co"
+        display_name = "Demo Co"
+        canonical_key = "demo"
+
     async with AsyncSessionLocal() as session:
         res = await session.execute(
-            text("SELECT id FROM tenants WHERE name = :name OR slug = 'demo-co'"),
-            {"name": demo_name},
+            text("SELECT id, name FROM tenants WHERE name ILIKE :pattern OR slug = :slug LIMIT 1"),
+            {"pattern": name_pattern, "slug": slug},
         )
         row = res.fetchone()
         if not row:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Demo tenant '{demo_name}' not found. Run scripts/seed_demo_tenant.py first.",
+                detail=f"Target tenant '{display_name}' not found.",
             )
-        return row[0]
+        return row[0], canonical_key, display_name
+
+
+async def _resolve_demo_tenant_id() -> UUID:
+    uid, _, _ = await _resolve_target_tenant("demo")
+    return uid
 
 
 async def _get_demo_tenant_metrics(tenant_id: UUID) -> Dict[str, float]:
@@ -94,7 +115,7 @@ async def _get_demo_tenant_metrics(tenant_id: UUID) -> Dict[str, float]:
     return {"requests": 0.0, "errors": 0.0, "avg_latency_ms": 0.0}
 
 
-async def _monitor_traffic_process(run_id: str, proc: asyncio.subprocess.Process, demo_tenant_id: UUID):
+async def _monitor_traffic_process(run_id: str, proc: Any, demo_tenant_id: UUID):
     global _active_traffic_proc, _active_traffic_run_id
     try:
         await asyncio.wait_for(proc.wait(), timeout=30.0)
@@ -155,12 +176,16 @@ async def _monitor_traffic_process(run_id: str, proc: asyncio.subprocess.Process
 @router.post("/start", summary="Start Test Traffic Generation")
 async def start_test_traffic(
     request: Request,
+    payload: Optional[Dict[str, Any]] = Body(None),
     current_user: AuthenticatedUser = Depends(get_current_user),
 ) -> Dict[str, Any]:
     global _active_traffic_proc, _active_traffic_run_id, _last_traffic_start_time
 
     require_platform_admin(current_user)
     _check_lab_refusal()
+
+    target_tenant_arg = (payload or {}).get("tenant", "demo") if payload else "demo"
+    target_id, canonical_key, display_name = await _resolve_target_tenant(target_tenant_arg)
 
     now = time.time()
     async with _traffic_lock:
@@ -177,27 +202,44 @@ async def start_test_traffic(
                 detail=f"Rate limit: please wait {remaining} seconds before starting another traffic run.",
             )
 
-        demo_id = await _resolve_demo_tenant_id()
-        before_metrics = await _get_demo_tenant_metrics(demo_id)
+        before_metrics = await _get_demo_tenant_metrics(target_id)
 
         run_id = str(uuid4())
         start_iso = datetime.now(timezone.utc).isoformat()
         progress_path = SCRATCH_DIR / f"traffic_progress_{run_id}.jsonl"
 
         # Launch background process with fixed arguments
-        script_path = Path(__file__).resolve().parent.parent.parent / "scripts" / "send_test_traffic.py"
+        workspace_root = Path(__file__).resolve().parent.parent.parent
+        script_path = workspace_root / "scripts" / "send_test_traffic.py"
+        cmd = [
+            sys.executable,
+            str(script_path),
+            "--progress-file",
+            str(progress_path),
+            "--target-url",
+            "http://127.0.0.1:8000",
+            "--tenant",
+            canonical_key,
+        ]
         try:
             proc = await asyncio.create_subprocess_exec(
-                sys.executable,
-                str(script_path),
-                "--progress-file",
-                str(progress_path),
-                "--target-url",
-                "http://127.0.0.1:8000",
+                *cmd,
+                cwd=str(workspace_root),
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.DEVNULL,
             )
+        except NotImplementedError:
+            import subprocess
+            from app.api.runs import PopenProcessAdapter
+            p = subprocess.Popen(
+                cmd,
+                cwd=str(workspace_root),
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            proc = PopenProcessAdapter(p)
         except Exception as exc:
+            logger.error("Failed to spawn traffic process: %s", exc)
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Failed to launch traffic process.",
@@ -209,6 +251,7 @@ async def start_test_traffic(
 
         TRAFFIC_REGISTRY[run_id] = {
             "run_id": run_id,
+            "target_tenant": display_name,
             "state": "running",
             "start_time": start_iso,
             "finish_time": None,
@@ -220,10 +263,11 @@ async def start_test_traffic(
             "comparison": None,
         }
 
-        asyncio.create_task(_monitor_traffic_process(run_id, proc, demo_id))
+        asyncio.create_task(_monitor_traffic_process(run_id, proc, target_id))
 
         return {
             "run_id": run_id,
+            "target_tenant": display_name,
             "state": "running",
             "start_time": start_iso,
         }

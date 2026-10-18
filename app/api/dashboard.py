@@ -1,3 +1,4 @@
+
 """
 TenantShield - Admin Dashboard & UI Support Endpoints
 =====================================================
@@ -29,6 +30,7 @@ from sqlalchemy import text
 from app.api.deps import get_current_user
 from app.core.database import AsyncSessionLocal, tenant_session
 from app.schemas.auth import AuthenticatedUser
+from app.services.metrics import MetricsService
 
 router = APIRouter(prefix="/admin/dashboard", tags=["Admin Dashboard"])
 
@@ -487,4 +489,108 @@ async def get_tenant_keys_status(
         "status": "success",
         "tenants": tenants_result,
         "note": "Results describe these runs only.",
+    }
+
+
+@router.get("/noisy-neighbour/live", summary="Live Noisy-Neighbour Impact (Redis)")
+async def get_live_noisy_neighbour(
+    current_user: AuthenticatedUser = Depends(get_current_user),
+) -> Dict[str, Any]:
+    """
+    Dynamically computes the noisy-neighbour effect from live Redis telemetry.
+
+    Logic:
+      1. Fetch aggregated 60-minute metrics for all tenants from Redis.
+      2. Identify the 'noisy' tenant — the one with the highest request volume.
+      3. Compute share-of-traffic (%) and relative request pressure per tenant.
+      4. Return a structured comparison showing which tenant is dominant
+         and how its load compares to each quiet neighbour.
+
+    Requires platform_admin role. Returns empty state if no live metrics exist.
+    """
+    require_platform_admin(current_user)
+
+    # 1. Pull live Redis metrics (last 60 min, all tenants)
+    try:
+        metrics_data = await MetricsService.get_aggregated_metrics(window_minutes=60)
+    except Exception as exc:
+        return {
+            "status": "error",
+            "message": f"Redis unavailable: {type(exc).__name__}",
+        }
+
+    tenants_raw = metrics_data.get("tenants", [])
+    if not tenants_raw:
+        return {
+            "status": "empty",
+            "message": (
+                "No live traffic data yet. Use 'Send test traffic' in Metrics & Traffic "
+                "to generate real requests and watch this update dynamically."
+            ),
+        }
+
+    # 2. Resolve friendly tenant names from DB
+    name_map: Dict[str, str] = {}
+    try:
+        async with AsyncSessionLocal() as session:
+            rows = await session.execute(
+                text("SELECT id::text, name FROM tenants")
+            )
+            for tid, tname in rows.fetchall():
+                name_map[tid] = tname
+    except Exception:
+        pass
+
+    # 3. Enrich and sort tenants
+    enriched = []
+    total_requests = sum(int(t.get("request_count", 0)) for t in tenants_raw)
+    for t in tenants_raw:
+        tid = str(t.get("tenant_id", ""))
+        reqs = int(t.get("request_count", 0))
+        enriched.append({
+            "tenant_id": tid,
+            "tenant_name": name_map.get(tid, tid[:8] + "..."),
+            "request_count": reqs,
+            "error_count": int(t.get("error_count", 0)),
+            "avg_latency_ms": float(t.get("avg_latency_ms", 0.0)),
+            "share_pct": round((reqs / total_requests * 100) if total_requests > 0 else 0.0, 1),
+        })
+
+    # Sort by request_count descending (noisiest first)
+    enriched.sort(key=lambda x: x["request_count"], reverse=True)
+
+    # 4. Label the noisiest tenant
+    noisy = enriched[0] if enriched else None
+    quiet_neighbours = enriched[1:] if len(enriched) > 1 else []
+
+    # 5. Compute pressure ratio (noisy vs each quiet tenant)
+    neighbours_out = []
+    for q in quiet_neighbours:
+        ratio = (
+            round(noisy["request_count"] / q["request_count"], 1)
+            if q["request_count"] > 0
+            else None
+        )
+        neighbours_out.append({
+            "tenant_id": q["tenant_id"],
+            "tenant_name": q["tenant_name"],
+            "request_count": q["request_count"],
+            "error_count": q["error_count"],
+            "avg_latency_ms": q["avg_latency_ms"],
+            "share_pct": q["share_pct"],
+            "noisy_pressure_ratio": ratio,
+        })
+
+    return {
+        "status": "success",
+        "window_minutes": 60,
+        "generated_at_utc": metrics_data.get("end_time"),
+        "total_requests_all_tenants": total_requests,
+        "noisy_tenant": noisy,
+        "quiet_neighbours": neighbours_out,
+        "all_tenants": enriched,
+        "note": (
+            "Live data from Redis. Send traffic via 'Metrics & Traffic → Send test traffic' "
+            "to see this update dynamically."
+        ),
     }

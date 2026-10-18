@@ -20,6 +20,7 @@ from datetime import datetime, timezone
 import json
 import logging
 from pathlib import Path
+import subprocess
 import sys
 import time
 from typing import Any, Dict, Optional
@@ -33,6 +34,7 @@ from app.api.dashboard import (
     require_platform_admin,
     sanitize_value,
     get_latest_baseline_verification_file,
+    get_latest_result_file,
 )
 from app.core.config import settings
 from app.schemas.auth import AuthenticatedUser
@@ -56,7 +58,29 @@ def _is_lab_mode() -> bool:
     return env == "lab"
 
 
-async def _monitor_verification_process(run_id: str, proc: asyncio.subprocess.Process) -> None:
+class PopenProcessAdapter:
+    """Async adapter wrapping subprocess.Popen for platforms or event loops (like Windows SelectorEventLoop) where create_subprocess_exec raises NotImplementedError."""
+    def __init__(self, p: subprocess.Popen):
+        self._proc = p
+
+    @property
+    def returncode(self) -> Optional[int]:
+        return self._proc.poll()
+
+    async def wait(self) -> int:
+        return await asyncio.to_thread(self._proc.wait)
+
+    def kill(self) -> None:
+        try:
+            self._proc.kill()
+        except Exception:
+            pass
+
+
+_PopenProcessAdapter = PopenProcessAdapter
+
+
+async def _monitor_verification_process(run_id: str, proc: Any) -> None:
     global _active_process, _active_run_id
     try:
         # 120 second timeout cap
@@ -175,8 +199,18 @@ async def start_verification_run(
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.DEVNULL,
             )
+        except NotImplementedError:
+            # Fallback for Windows event loops (e.g. SelectorEventLoop under uvicorn)
+            p = subprocess.Popen(
+                cmd,
+                cwd=str(WORKSPACE_ROOT),
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            proc = _PopenProcessAdapter(p)
         except Exception as exc:
-            logger.error("Failed to spawn verification process: %s", exc)
+            import traceback
+            logger.error("Failed to spawn verification process: %s\n%s", exc, traceback.format_exc())
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Failed to launch verification process.",
@@ -249,5 +283,373 @@ async def get_verification_run_status(
             resp["summary"] = sanitize_value(run_data["summary"])
         if run_data.get("attacks"):
             resp["attacks"] = sanitize_value(run_data["attacks"])
+        if run_data.get("progress"):
+            resp["progress"] = run_data["progress"]
 
         return resp
+
+
+# -----------------------------------------------------------------------------
+# Layer-Kill Matrix & Mutation Testing Lab Runners
+# -----------------------------------------------------------------------------
+_lab_lock = asyncio.Lock()
+_active_lab_process: Optional[PopenProcessAdapter] = None
+_active_lab_run_id: Optional[str] = None
+_last_lab_start_timestamp: float = 0.0
+
+
+def _read_stdout_lines(proc: subprocess.Popen, run_id: str, is_matrix: bool) -> None:
+    try:
+        if not proc.stdout:
+            return
+        for line in iter(proc.stdout.readline, ""):
+            if not line:
+                break
+            s = line.strip()
+            if not s:
+                continue
+            if is_matrix:
+                if "(a)" in s and "Controls ON" in s:
+                    RUNS_REGISTRY[run_id]["progress"] = "Evaluating Config (a): All Controls ON..."
+                elif "(b)" in s and "Ownership OFF" in s:
+                    RUNS_REGISTRY[run_id]["progress"] = "Evaluating Config (b): App Ownership Check OFF..."
+                elif "(c)" in s and "RLS OFF" in s:
+                    RUNS_REGISTRY[run_id]["progress"] = "Evaluating Config (c): Database RLS OFF..."
+                elif "(d)" in s and "Both A+B OFF" in s:
+                    RUNS_REGISTRY[run_id]["progress"] = "Evaluating Config (d): Both App Check & RLS OFF..."
+                elif "(e)" in s and "Controls OFF" in s:
+                    RUNS_REGISTRY[run_id]["progress"] = "Evaluating Config (e): All Controls OFF..."
+                elif "EMPIRICAL LAYER-KILL MATRIX" in s:
+                    RUNS_REGISTRY[run_id]["progress"] = "Compiling empirical matrix results..."
+            else:
+                if "Mutation 1:" in s:
+                    RUNS_REGISTRY[run_id]["progress"] = "Evaluating Mutation 1: Missing tenant query filter (Layer C)..."
+                elif "Mutation 2:" in s:
+                    RUNS_REGISTRY[run_id]["progress"] = "Evaluating Mutation 2: Flawed RLS policy condition (Layer B)..."
+                elif "Mutation 3:" in s:
+                    RUNS_REGISTRY[run_id]["progress"] = "Evaluating Mutation 3: RLS not enabled on documents (Layer B)..."
+                elif "Mutation 4:" in s:
+                    RUNS_REGISTRY[run_id]["progress"] = "Evaluating Mutation 4: App connecting as superuser (Layer B Bypass)..."
+                elif "Mutation 5:" in s:
+                    RUNS_REGISTRY[run_id]["progress"] = "Evaluating Mutation 5: Tenant context leaking across sessions..."
+                elif "ISOLATION MUTATION TESTING SUMMARY" in s:
+                    RUNS_REGISTRY[run_id]["progress"] = "Computing isolation mutation sensitivity score..."
+    except Exception as exc:
+        logger.debug("Stdout read stream ended for %s: %s", run_id, exc)
+
+
+async def _monitor_matrix_process(run_id: str, adapter: PopenProcessAdapter) -> None:
+    global _active_lab_process, _active_lab_run_id
+    try:
+        read_task = asyncio.to_thread(_read_stdout_lines, adapter._proc, run_id, True)
+        await asyncio.wait_for(asyncio.gather(read_task, adapter.wait()), timeout=180.0)
+        finish_iso = datetime.now(timezone.utc).isoformat()
+
+        if adapter.returncode == 0:
+            target_file = get_latest_result_file("layer_kill_matrix")
+            matrix_data = None
+            if target_file and target_file.exists():
+                try:
+                    with open(target_file, "r", encoding="utf-8") as f:
+                        raw = json.load(f)
+                    matrix_data = {
+                        "generated_at_utc": raw.get("generated_at_utc"),
+                        "overall_verdict": raw.get("overall_verdict", "UNKNOWN"),
+                        "configurations": raw.get("matrix", []),
+                    }
+                except Exception as read_err:
+                    logger.warning("Error reading newly produced matrix: %s", read_err)
+
+            RUNS_REGISTRY[run_id]["state"] = "finished"
+            RUNS_REGISTRY[run_id]["finish_time"] = finish_iso
+            RUNS_REGISTRY[run_id]["progress"] = "Layer-Kill Matrix completed successfully."
+            RUNS_REGISTRY[run_id]["result"] = sanitize_value(matrix_data)
+        else:
+            RUNS_REGISTRY[run_id]["state"] = "failed"
+            RUNS_REGISTRY[run_id]["finish_time"] = finish_iso
+            RUNS_REGISTRY[run_id]["error"] = f"Matrix process exited with code {adapter.returncode}"
+    except asyncio.TimeoutError:
+        adapter.kill()
+        finish_iso = datetime.now(timezone.utc).isoformat()
+        RUNS_REGISTRY[run_id]["state"] = "failed"
+        RUNS_REGISTRY[run_id]["finish_time"] = finish_iso
+        RUNS_REGISTRY[run_id]["error"] = "Process timed out after 180 seconds"
+    except Exception as exc:
+        finish_iso = datetime.now(timezone.utc).isoformat()
+        RUNS_REGISTRY[run_id]["state"] = "failed"
+        RUNS_REGISTRY[run_id]["finish_time"] = finish_iso
+        RUNS_REGISTRY[run_id]["error"] = f"Matrix process failed: {str(exc)}"
+    finally:
+        async with _lab_lock:
+            if _active_lab_run_id == run_id:
+                _active_lab_process = None
+                _active_lab_run_id = None
+
+
+async def _monitor_mutation_process(run_id: str, adapter: PopenProcessAdapter) -> None:
+    global _active_lab_process, _active_lab_run_id
+    try:
+        read_task = asyncio.to_thread(_read_stdout_lines, adapter._proc, run_id, False)
+        await asyncio.wait_for(asyncio.gather(read_task, adapter.wait()), timeout=180.0)
+        finish_iso = datetime.now(timezone.utc).isoformat()
+
+        if adapter.returncode == 0:
+            target_file = get_latest_result_file("mutation_report")
+            mut_data = None
+            if target_file and target_file.exists():
+                try:
+                    with open(target_file, "r", encoding="utf-8") as f:
+                        raw = json.load(f)
+                    score = raw.get(
+                        "isolation_mutation_score",
+                        f"{raw.get('attack_suite_caught', 0)} caught by the attack suite and "
+                        f"{raw.get('dedicated_probe_caught', 0)} caught by a dedicated probe, "
+                        f"out of {raw.get('total_injected', 0)}",
+                    )
+                    mut_data = {
+                        "timestamp": raw.get("timestamp"),
+                        "isolation_mutation_score": score,
+                        "mutations": raw.get("mutations", []),
+                    }
+                except Exception as read_err:
+                    logger.warning("Error reading newly produced mutation report: %s", read_err)
+
+            RUNS_REGISTRY[run_id]["state"] = "finished"
+            RUNS_REGISTRY[run_id]["finish_time"] = finish_iso
+            RUNS_REGISTRY[run_id]["progress"] = "Mutation Testing completed successfully."
+            RUNS_REGISTRY[run_id]["result"] = sanitize_value(mut_data)
+        else:
+            RUNS_REGISTRY[run_id]["state"] = "failed"
+            RUNS_REGISTRY[run_id]["finish_time"] = finish_iso
+            RUNS_REGISTRY[run_id]["error"] = f"Mutation process exited with code {adapter.returncode}"
+    except asyncio.TimeoutError:
+        adapter.kill()
+        finish_iso = datetime.now(timezone.utc).isoformat()
+        RUNS_REGISTRY[run_id]["state"] = "failed"
+        RUNS_REGISTRY[run_id]["finish_time"] = finish_iso
+        RUNS_REGISTRY[run_id]["error"] = "Process timed out after 180 seconds"
+    except Exception as exc:
+        finish_iso = datetime.now(timezone.utc).isoformat()
+        RUNS_REGISTRY[run_id]["state"] = "failed"
+        RUNS_REGISTRY[run_id]["finish_time"] = finish_iso
+        RUNS_REGISTRY[run_id]["error"] = f"Mutation process failed: {str(exc)}"
+    finally:
+        async with _lab_lock:
+            if _active_lab_run_id == run_id:
+                _active_lab_process = None
+                _active_lab_run_id = None
+
+
+@router.post("/run-matrix", summary="Trigger Layer-Kill Matrix Run Live")
+async def start_matrix_run(
+    current_user: AuthenticatedUser = Depends(get_current_user),
+) -> Dict[str, Any]:
+    """
+    Executes the Level 8 Layer-Kill Matrix across all 5 configurations ((a) to (e))
+    against the isolated tenantshield_lab database.
+    """
+    global _active_lab_process, _active_lab_run_id, _last_lab_start_timestamp
+    require_platform_admin(current_user)
+
+    async with _lab_lock:
+        now = time.time()
+        if _active_lab_process is not None and _active_lab_process.returncode is None:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="A lab experiment (Layer-Kill or Mutation) is currently running.",
+            )
+
+        elapsed = now - _last_lab_start_timestamp
+        if elapsed < 5.0:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=f"Please wait {int(5.0 - elapsed) + 1}s before starting another lab run.",
+            )
+
+        run_id = str(uuid.uuid4())
+        start_iso = datetime.now(timezone.utc).isoformat()
+
+        script_path = str(WORKSPACE_ROOT / "scripts" / "run_matrix.py")
+        cmd = [sys.executable, script_path]
+
+        try:
+            p = subprocess.Popen(
+                cmd,
+                cwd=str(WORKSPACE_ROOT),
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                bufsize=1,
+            )
+            adapter = PopenProcessAdapter(p)
+        except Exception as exc:
+            logger.error("Failed to spawn Layer-Kill process: %s", exc)
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to launch Layer-Kill process: {exc}",
+            ) from exc
+
+        _active_lab_process = adapter
+        _active_lab_run_id = run_id
+        _last_lab_start_timestamp = now
+
+        RUNS_REGISTRY[run_id] = {
+            "run_id": run_id,
+            "type": "layer-kill",
+            "state": "running",
+            "progress": "Starting Layer-Kill Matrix runner...",
+            "start_time": start_iso,
+            "finish_time": None,
+            "result": None,
+        }
+
+        asyncio.create_task(_monitor_matrix_process(run_id, adapter))
+
+        return {
+            "run_id": run_id,
+            "state": "running",
+            "start_time": start_iso,
+            "progress": "Starting Layer-Kill Matrix runner...",
+        }
+
+
+@router.get("/run-matrix-status/{run_id}", summary="Check Layer-Kill Matrix Status")
+async def get_matrix_run_status(
+    run_id: str,
+    current_user: AuthenticatedUser = Depends(get_current_user),
+) -> Dict[str, Any]:
+    require_platform_admin(current_user)
+
+    try:
+        valid_uuid = str(UUID(run_id))
+    except (ValueError, TypeError, AttributeError):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid run ID format; must be a valid UUID.",
+        )
+
+    async with _lab_lock:
+        run_data = RUNS_REGISTRY.get(valid_uuid)
+        if not run_data:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Run ID not found in registry.",
+            )
+
+        return {
+            "run_id": run_data["run_id"],
+            "state": run_data["state"],
+            "progress": run_data.get("progress", ""),
+            "start_time": run_data["start_time"],
+            "finish_time": run_data.get("finish_time"),
+            "error": run_data.get("error"),
+            "result": run_data.get("result"),
+        }
+
+
+@router.post("/run-mutation", summary="Trigger Mutation Suite Run Live")
+async def start_mutation_run(
+    current_user: AuthenticatedUser = Depends(get_current_user),
+) -> Dict[str, Any]:
+    """
+    Executes the full suite of 5 isolation mutation experiments
+    against the isolated tenantshield_lab database.
+    """
+    global _active_lab_process, _active_lab_run_id, _last_lab_start_timestamp
+    require_platform_admin(current_user)
+
+    async with _lab_lock:
+        now = time.time()
+        if _active_lab_process is not None and _active_lab_process.returncode is None:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="A lab experiment (Layer-Kill or Mutation) is currently running.",
+            )
+
+        elapsed = now - _last_lab_start_timestamp
+        if elapsed < 5.0:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=f"Please wait {int(5.0 - elapsed) + 1}s before starting another lab run.",
+            )
+
+        run_id = str(uuid.uuid4())
+        start_iso = datetime.now(timezone.utc).isoformat()
+
+        script_path = str(WORKSPACE_ROOT / "scripts" / "run_mutation.py")
+        cmd = [sys.executable, script_path]
+
+        try:
+            p = subprocess.Popen(
+                cmd,
+                cwd=str(WORKSPACE_ROOT),
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                bufsize=1,
+            )
+            adapter = PopenProcessAdapter(p)
+        except Exception as exc:
+            logger.error("Failed to spawn Mutation process: %s", exc)
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to launch Mutation process: {exc}",
+            ) from exc
+
+        _active_lab_process = adapter
+        _active_lab_run_id = run_id
+        _last_lab_start_timestamp = now
+
+        RUNS_REGISTRY[run_id] = {
+            "run_id": run_id,
+            "type": "mutation",
+            "state": "running",
+            "progress": "Starting Isolation Mutation runner...",
+            "start_time": start_iso,
+            "finish_time": None,
+            "result": None,
+        }
+
+        asyncio.create_task(_monitor_mutation_process(run_id, adapter))
+
+        return {
+            "run_id": run_id,
+            "state": "running",
+            "start_time": start_iso,
+            "progress": "Starting Isolation Mutation runner...",
+        }
+
+
+@router.get("/run-mutation-status/{run_id}", summary="Check Mutation Run Status")
+async def get_mutation_run_status(
+    run_id: str,
+    current_user: AuthenticatedUser = Depends(get_current_user),
+) -> Dict[str, Any]:
+    require_platform_admin(current_user)
+
+    try:
+        valid_uuid = str(UUID(run_id))
+    except (ValueError, TypeError, AttributeError):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid run ID format; must be a valid UUID.",
+        )
+
+    async with _lab_lock:
+        run_data = RUNS_REGISTRY.get(valid_uuid)
+        if not run_data:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Run ID not found in registry.",
+            )
+
+        return {
+            "run_id": run_data["run_id"],
+            "state": run_data["state"],
+            "progress": run_data.get("progress", ""),
+            "start_time": run_data["start_time"],
+            "finish_time": run_data.get("finish_time"),
+            "error": run_data.get("error"),
+            "result": run_data.get("result"),
+        }
+

@@ -34,5 +34,7 @@ Thumbs.db
 Desktop.ini
 .DS_Store
 
-# Logs
+# Logs & temp files
 *.log
+scratch/
+results_backup/

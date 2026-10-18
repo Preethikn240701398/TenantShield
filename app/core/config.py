@@ -218,5 +218,5 @@ class Settings(BaseSettings):
     )
 
 
-# Global singleton settings instance
+# Global singleton settings instance loaded from .env
 settings = Settings()

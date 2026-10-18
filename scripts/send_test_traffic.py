@@ -25,7 +25,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
-def send_traffic(progress_file_path: str, target_url: str = "http://127.0.0.1:8000"):
+def send_traffic(progress_file_path: str, target_url: str = "http://127.0.0.1:8000", tenant: str = "demo"):
     # 1. Safety Checks
     app_env = (os.getenv("APP_ENV") or os.getenv("ENVIRONMENT") or "").lower()
     if app_env == "lab":
@@ -38,15 +38,23 @@ def send_traffic(progress_file_path: str, target_url: str = "http://127.0.0.1:80
         print(f"[ERROR] Refusing execution: Target host '{hostname}' must be 127.0.0.1 or localhost.", file=sys.stderr)
         sys.exit(1)
 
-    demo_email = os.getenv("DEMO_COMPANY_EMAIL", "demo_user@democo.test").lower().strip()
-    demo_password = os.getenv("DEMO_COMPANY_PASSWORD", "DemoCompanySecurePass123!")
+    t_lower = tenant.strip().lower()
+    if "acme" in t_lower:
+        email = os.getenv("DEV_ACME_USER_EMAIL", "acme_user@acme.test")
+        password = os.getenv("DEV_ACME_USER_PASSWORD", "AcmeSecretPassword123!")
+    elif "beta" in t_lower:
+        email = os.getenv("DEV_BETA_USER_EMAIL", "beta_user@beta.test")
+        password = os.getenv("DEV_BETA_USER_PASSWORD", "BetaSecretPassword123!")
+    else:
+        email = os.getenv("DEMO_COMPANY_EMAIL", "demo_user@democo.test").lower().strip()
+        password = os.getenv("DEMO_COMPANY_PASSWORD", "DemoCompanySecurePass123!")
 
-    # 2. Authenticate Demo Co User
+    # 2. Authenticate User
     client = httpx.Client(base_url=target_url, timeout=10.0)
     try:
-        login_res = client.post("/auth/login", json={"email": demo_email, "password": demo_password})
+        login_res = client.post("/auth/login", json={"email": email, "password": password})
         if login_res.status_code != 200:
-            print(f"[ERROR] Authentication failed for demo user ({login_res.status_code}). Ensure Demo Co is seeded.", file=sys.stderr)
+            print(f"[ERROR] Authentication failed for user {email} ({login_res.status_code}).", file=sys.stderr)
             sys.exit(1)
 
         token = login_res.json().get("access_token")
@@ -113,9 +121,10 @@ def main():
     parser = argparse.ArgumentParser(description="TenantShield Send Test Traffic Runner")
     parser.add_argument("--progress-file", required=True, help="Absolute path to progress file")
     parser.add_argument("--target-url", default="http://127.0.0.1:8000", help="Target server URL")
+    parser.add_argument("--tenant", default="demo", choices=["demo", "acme", "beta"], help="Target tenant")
     args = parser.parse_args()
 
-    send_traffic(args.progress_file, args.target_url)
+    send_traffic(args.progress_file, args.target_url, args.tenant)
 
 
 if __name__ == "__main__":

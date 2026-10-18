@@ -22,6 +22,8 @@ from app.api.demo import router as demo_router
 from app.api.traffic_demo import router as traffic_demo_router
 from app.api.attack_demo import router as attack_demo_router
 from app.api.config_check import router as config_check_router
+from app.api.benchmark_demo import router as benchmark_demo_router
+from app.vulnerable.documents_flawed import router as vulnerable_router
 from app.core.config import settings
 from app.core.database import engine
 from app.services.metrics import MetricsService
@@ -146,6 +148,8 @@ def create_application() -> FastAPI:
     app.include_router(traffic_demo_router)
     app.include_router(attack_demo_router)
     app.include_router(config_check_router)
+    app.include_router(benchmark_demo_router)
+    app.include_router(vulnerable_router)
 
     # Mount UI static files
     from pathlib import Path

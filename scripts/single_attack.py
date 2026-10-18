@@ -21,20 +21,22 @@ import uuid
 
 import httpx
 
-# Map tenant names to credential resolvers
+# Map tenant names to credential resolvers.
+# Uses the same env var names as seed_tenants.py / .env so credentials always match.
 def get_credentials(tenant_name: str) -> tuple[str, str]:
     tenant_lower = tenant_name.strip().lower()
     if "acme" in tenant_lower:
-        email = os.getenv("DEMO_ACME_EMAIL", "acme_user@acme.test")
-        password = os.getenv("DEMO_ACME_PASSWORD", "AcmeSecretPass123!")
+        email = os.getenv("DEV_ACME_USER_EMAIL", "acme_user@acme.test")
+        password = os.getenv("DEV_ACME_USER_PASSWORD", "AcmeSecretPassword123!")
         return email, password
     elif "beta" in tenant_lower:
-        email = os.getenv("DEMO_BETA_EMAIL", "beta_user@beta.test")
-        password = os.getenv("DEMO_BETA_PASSWORD", "BetaSecretPass123!")
+        email = os.getenv("DEV_BETA_USER_EMAIL", "beta_user@beta.test")
+        password = os.getenv("DEV_BETA_USER_PASSWORD", "BetaSecretPassword123!")
         return email, password
     elif "demo" in tenant_lower:
-        email = os.getenv("DEMO_COMPANY_EMAIL", "demo_user@democo.test")
-        password = os.getenv("DEMO_COMPANY_PASSWORD", "DemoCoPass123!")
+        # Demo Co tenant uses seed_demo_tenant.py credentials
+        email = os.getenv("DEV_DEMO_USER_EMAIL", "demo_user@democo.test")
+        password = os.getenv("DEV_DEMO_USER_PASSWORD", "DemoCoSecretPassword123!")
         return email, password
     else:
         raise ValueError(f"Unknown tenant: {tenant_name}")
@@ -76,6 +78,7 @@ def main() -> int:
     parser.add_argument("--attacker", required=True, choices=["Acme", "Beta", "Demo Co"])
     parser.add_argument("--victim", required=True, choices=["Acme", "Beta", "Demo Co"])
     parser.add_argument("--action", required=True, choices=["read", "update", "delete", "create-into-victim"])
+    parser.add_argument("--target-mode", choices=["secure", "vulnerable"], default="secure", help="Target architecture: secure (app/api/documents.py) or vulnerable (app/vulnerable/documents_flawed.py)")
     parser.add_argument("--target-url", default="http://127.0.0.1:8000")
     parser.add_argument("--progress-file", default=None)
     parser.add_argument("--output-file", default=None)
@@ -154,19 +157,23 @@ def main() -> int:
         attack_text = ""
         request_info = {}
 
+        base_endpoint = "/vulnerable/documents" if args.target_mode == "vulnerable" else "/documents"
+
         if args.action == "read":
-            request_info = {"method": "GET", "path": f"/documents/{canary_doc_id}"}
+            target_path = f"{base_endpoint}/{canary_doc_id}"
+            request_info = {"method": "GET", "path": target_path}
             atk_res = client.get(
-                f"/documents/{canary_doc_id}",
+                target_path,
                 headers={"Authorization": f"Bearer {attacker_token}"},
             )
             attack_status = atk_res.status_code
             attack_text = atk_res.text
 
         elif args.action == "update":
-            request_info = {"method": "PUT", "path": f"/documents/{canary_doc_id}"}
+            target_path = f"{base_endpoint}/{canary_doc_id}"
+            request_info = {"method": "PUT", "path": target_path}
             atk_res = client.put(
-                f"/documents/{canary_doc_id}",
+                target_path,
                 json={"title": "TAMPERED_BY_ATTACKER", "content": "MALICIOUS_OVERWRITE_DATA"},
                 headers={"Authorization": f"Bearer {attacker_token}"},
             )
@@ -174,9 +181,10 @@ def main() -> int:
             attack_text = atk_res.text
 
         elif args.action == "delete":
-            request_info = {"method": "DELETE", "path": f"/documents/{canary_doc_id}"}
+            target_path = f"{base_endpoint}/{canary_doc_id}"
+            request_info = {"method": "DELETE", "path": target_path}
             atk_res = client.delete(
-                f"/documents/{canary_doc_id}",
+                target_path,
                 headers={"Authorization": f"Bearer {attacker_token}"},
             )
             attack_status = atk_res.status_code
@@ -267,8 +275,11 @@ def main() -> int:
         elif args.action in ("read", "update", "delete"):
             if attack_status in (200, 201, 204) or canary_secret in attack_text:
                 outcome = "LEAKED"
-                blocking_control = "none"
-                explanation = f"Cross-tenant {args.action} attack succeeded (HTTP {attack_status}); victim isolation was bypassed."
+                blocking_control = "none (Omitted in app/vulnerable/)" if args.target_mode == "vulnerable" else "none"
+                if args.target_mode == "vulnerable":
+                    explanation = f"CRITICAL LEAK: Attacker successfully bypassed tenant boundaries via flawed route '{base_endpoint}'! Cross-tenant {args.action} succeeded (HTTP {attack_status})."
+                else:
+                    explanation = f"Cross-tenant {args.action} attack succeeded (HTTP {attack_status}); victim isolation was bypassed."
             elif victim_doc_state != "INTACT":
                 outcome = "LEAKED"
                 blocking_control = "none"
@@ -296,6 +307,8 @@ def main() -> int:
             "blocking_control": blocking_control,
             "victim_doc_state": victim_doc_state,
             "explanation": explanation,
+            "target_mode": args.target_mode,
+            "leaked_text": attack_text if outcome == "LEAKED" and args.action == "read" else None,
         }
 
         # Format and save output

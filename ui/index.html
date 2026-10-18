@@ -146,7 +146,268 @@
       <!-- ======================================================== -->
       <!-- ADMIN DASHBOARD VIEW (platform_admin)                    -->
       <!-- ======================================================== -->
-      <div id="admin-dashboard" style="display: none;">
+      <div id="admin-dashboard" class="admin-tab-mode" style="display: none;">
+
+        <!-- Admin Dashboard Header & Quick Controls -->
+        <div class="admin-toolbar" id="admin-toolbar">
+          <div class="admin-breadcrumb">
+            <span class="bc-root">Admin Console</span>
+            <span class="bc-sep">/</span>
+            <span class="bc-category" id="admin-bc-category">Dashboard</span>
+            <span class="bc-sep">/</span>
+            <span class="bc-current" id="admin-bc-title">Overview</span>
+          </div>
+
+          <div class="admin-toolbar-actions">
+            <!-- Quick Feature Search -->
+            <div class="admin-search-wrap">
+              <svg class="search-svg" viewBox="0 0 20 20" fill="currentColor" width="14" height="14">
+                <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"></path>
+              </svg>
+              <input type="text" id="admin-feature-search" class="admin-search-input" placeholder="Jump to feature... (e.g. attack, keys, metrics, mutation)" aria-label="Quick search feature">
+              <div id="admin-search-dropdown" class="admin-search-dropdown" style="display: none;"></div>
+            </div>
+
+            <!-- View Mode Switcher: Single Tab (Default, no scroll) vs All Sections -->
+            <div class="view-mode-toggle" role="group" aria-label="View mode">
+              <button type="button" class="mode-btn active" id="btn-mode-tab" title="Focused single-tab view (no scrolling)">Tab View</button>
+              <button type="button" class="mode-btn" id="btn-mode-all" title="View all sections on one page">All Sections</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Horizontal Tab Bar for Fast 1-Click Feature Navigation -->
+        <div class="admin-tab-bar" id="admin-tab-bar" role="tablist" aria-label="Admin modules">
+          <button type="button" class="tab-btn active" data-tab="overview" role="tab">Overview</button>
+          <button type="button" class="tab-btn" data-tab="verification" role="tab">Verification</button>
+          <button type="button" class="tab-btn" data-tab="layer-kill" role="tab">Layer-Kill</button>
+          <button type="button" class="tab-btn" data-tab="mutation" role="tab">Mutation</button>
+          <button type="button" class="tab-btn" data-tab="attack" role="tab">Attack Lab</button>
+          <button type="button" class="tab-btn" data-tab="keys" role="tab">Tenant Keys</button>
+          <button type="button" class="tab-btn" data-tab="demo" role="tab">Key Demo</button>
+          <button type="button" class="tab-btn" data-tab="metrics" role="tab">Metrics &amp; Traffic</button>
+          <button type="button" class="tab-btn" data-tab="noisy-neighbour" role="tab">Noisy Neighbour</button>
+          <button type="button" class="tab-btn" data-tab="config" role="tab">Config Audit</button>
+          <button type="button" class="tab-btn" data-tab="glossary" role="tab">Glossary</button>
+        </div>
+
+        <!-- 0. Executive Overview Section -->
+        <section class="dashboard-section active" id="section-overview">
+          <div class="overview-hero">
+            <div class="overview-hero-content">
+              <div class="overview-hero-badge">
+                <span class="pulse-indicator"></span> Platform Security &amp; Isolation Engine
+              </div>
+              <h1>Admin Command Center</h1>
+              <p>Monitor multi-tenant defense-in-depth, cryptographic envelope encryption, live telemetry, and simulated attack vectors without scrolling through endless pages.</p>
+            </div>
+            <div class="overview-hero-actions">
+              <button type="button" class="btn btn-primary btn-sm" id="btn-overview-refresh">Refresh all telemetry</button>
+            </div>
+          </div>
+
+          <!-- KPI Metric Cards Grid -->
+          <div class="kpi-grid">
+            <div class="kpi-card" data-jump="verification">
+              <div class="kpi-card-header">
+                <span class="kpi-title">Isolation Suite</span>
+                <span class="kpi-icon-pill">🛡️</span>
+              </div>
+              <div class="kpi-value" id="kpi-verdict">—</div>
+              <div class="kpi-desc" id="kpi-verdict-sub">Checking latest verification run...</div>
+              <div class="kpi-footer">
+                <span class="kpi-link">Open verification &rarr;</span>
+              </div>
+            </div>
+
+            <div class="kpi-card" data-jump="keys">
+              <div class="kpi-card-header">
+                <span class="kpi-title">Envelope DEK Keys</span>
+                <span class="kpi-icon-pill">🔑</span>
+              </div>
+              <div class="kpi-value" id="kpi-keys">—</div>
+              <div class="kpi-desc" id="kpi-keys-sub">Active &amp; retired tenant keys</div>
+              <div class="kpi-footer">
+                <span class="kpi-link">Manage keys &rarr;</span>
+              </div>
+            </div>
+
+            <div class="kpi-card" data-jump="mutation">
+              <div class="kpi-card-header">
+                <span class="kpi-title">Mutation Sensitivity</span>
+                <span class="kpi-icon-pill">🧬</span>
+              </div>
+              <div class="kpi-value" id="kpi-mutation">—</div>
+              <div class="kpi-desc" id="kpi-mutation-sub">Fault injection test detection</div>
+              <div class="kpi-footer">
+                <span class="kpi-link">View mutation tests &rarr;</span>
+              </div>
+            </div>
+
+            <div class="kpi-card" data-jump="config">
+              <div class="kpi-card-header">
+                <span class="kpi-title">Database RLS Health</span>
+                <span class="kpi-icon-pill">⚙️</span>
+              </div>
+              <div class="kpi-value" id="kpi-config">—</div>
+              <div class="kpi-desc" id="kpi-config-sub">Read-only security posture audit</div>
+              <div class="kpi-footer">
+                <span class="kpi-link">View audit &rarr;</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Feature Launchpad Grid -->
+          <div class="launchpad-section">
+            <h2 class="launchpad-heading">Feature Launchpad &amp; Modules</h2>
+            <div class="launchpad-grid">
+
+              <!-- Group 1: Security Assurance -->
+              <div class="launchpad-card" data-jump="verification">
+                <div class="launchpad-card-header">
+                  <div class="launchpad-icon-box">🛡️</div>
+                  <div>
+                    <div class="launchpad-title">Automated Verification Suite</div>
+                    <div class="launchpad-tag">11 Attacks Suite</div>
+                  </div>
+                </div>
+                <p class="launchpad-desc">Full cross-tenant isolation test suite, canary document integrity check, and zero list-leak validation.</p>
+                <div class="launchpad-footer">
+                  <button type="button" class="btn btn-sm btn-primary" data-jump="verification">Run / View verification</button>
+                </div>
+              </div>
+
+              <div class="launchpad-card" data-jump="layer-kill">
+                <div class="launchpad-card-header">
+                  <div class="launchpad-icon-box">🎛️</div>
+                  <div>
+                    <div class="launchpad-title">Layer-Kill Matrix</div>
+                    <div class="launchpad-tag">5 Permutations</div>
+                  </div>
+                </div>
+                <p class="launchpad-desc">Defense-in-depth matrix systematically testing Layer A (App check), Layer B (DB RLS), and Layer C (Query filter).</p>
+                <div class="launchpad-footer">
+                  <button type="button" class="btn btn-sm" data-jump="layer-kill">View layer matrix</button>
+                </div>
+              </div>
+
+              <div class="launchpad-card" data-jump="mutation">
+                <div class="launchpad-card-header">
+                  <div class="launchpad-icon-box">🧪</div>
+                  <div>
+                    <div class="launchpad-title">Mutation Testing</div>
+                    <div class="launchpad-tag">Sensitivity Analysis</div>
+                  </div>
+                </div>
+                <p class="launchpad-desc">Deliberate fault injection to prove verifier catches bypassed RLS, disabled checks, and missing filters.</p>
+                <div class="launchpad-footer">
+                  <button type="button" class="btn btn-sm" data-jump="mutation">View mutation report</button>
+                </div>
+              </div>
+
+              <div class="launchpad-card" data-jump="attack">
+                <div class="launchpad-card-header">
+                  <div class="launchpad-icon-box">🎯</div>
+                  <div>
+                    <div class="launchpad-title">Interactive Attack Simulator</div>
+                    <div class="launchpad-tag tag-accent">Interactive Lab</div>
+                  </div>
+                </div>
+                <p class="launchpad-desc">Select an attacker tenant and target victim tenant to execute live cross-tenant read, update, delete, or injection attacks.</p>
+                <div class="launchpad-footer">
+                  <button type="button" class="btn btn-sm btn-primary" data-jump="attack">Launch simulator</button>
+                </div>
+              </div>
+
+              <!-- Group 2: Key Management -->
+              <div class="launchpad-card" data-jump="keys">
+                <div class="launchpad-card-header">
+                  <div class="launchpad-icon-box">🔐</div>
+                  <div>
+                    <div class="launchpad-title">Tenant Encryption Keys</div>
+                    <div class="launchpad-tag">KMS Envelope</div>
+                  </div>
+                </div>
+                <p class="launchpad-desc">Inspect per-tenant data encryption keys (DEKs), version numbers, active/retired states, and rotation history.</p>
+                <div class="launchpad-footer">
+                  <button type="button" class="btn btn-sm" data-jump="keys">Inspect keys</button>
+                </div>
+              </div>
+
+              <div class="launchpad-card" data-jump="demo">
+                <div class="launchpad-card-header">
+                  <div class="launchpad-icon-box">⚡</div>
+                  <div>
+                    <div class="launchpad-title">Key Lifecycle &amp; Shred Demo</div>
+                    <div class="launchpad-tag tag-accent">7-Step Walkthrough</div>
+                  </div>
+                </div>
+                <p class="launchpad-desc">Interactive demonstration: create documents under Key N, rotate to N+1, shred Demo Co key, and confirm Acme safety.</p>
+                <div class="launchpad-footer">
+                  <button type="button" class="btn btn-sm btn-primary" data-jump="demo">Start key demo</button>
+                </div>
+              </div>
+
+              <!-- Group 3: Telemetry & Performance -->
+              <div class="launchpad-card" data-jump="metrics">
+                <div class="launchpad-card-header">
+                  <div class="launchpad-icon-box">📊</div>
+                  <div>
+                    <div class="launchpad-title">Per-Tenant Metrics &amp; Traffic</div>
+                    <div class="launchpad-tag tag-live">Live Redis</div>
+                  </div>
+                </div>
+                <p class="launchpad-desc">Real-time sliding 60-min request volume, error counts, latency charts, and interactive Demo Co traffic generator.</p>
+                <div class="launchpad-footer">
+                  <button type="button" class="btn btn-sm" data-jump="metrics">View telemetry</button>
+                </div>
+              </div>
+
+              <div class="launchpad-card" data-jump="noisy-neighbour">
+                <div class="launchpad-card-header">
+                  <div class="launchpad-icon-box">📈</div>
+                  <div>
+                    <div class="launchpad-title">Noisy-Neighbour Experiment</div>
+                    <div class="launchpad-tag">Load Benchmark</div>
+                  </div>
+                </div>
+                <p class="launchpad-desc">Multi-tenant workload benchmark evaluating p50/p95 latency, error rates, and 429 throttle behaviors.</p>
+                <div class="launchpad-footer">
+                  <button type="button" class="btn btn-sm" data-jump="noisy-neighbour">View benchmark</button>
+                </div>
+              </div>
+
+              <div class="launchpad-card" data-jump="config">
+                <div class="launchpad-card-header">
+                  <div class="launchpad-icon-box">🔍</div>
+                  <div>
+                    <div class="launchpad-title">Configuration Audit</div>
+                    <div class="launchpad-tag">Security Posture</div>
+                  </div>
+                </div>
+                <p class="launchpad-desc">Read-only audit of PostgreSQL Row-Level Security policies, application role privileges, and control flags.</p>
+                <div class="launchpad-footer">
+                  <button type="button" class="btn btn-sm" data-jump="config">Run config audit</button>
+                </div>
+              </div>
+
+              <div class="launchpad-card" data-jump="glossary">
+                <div class="launchpad-card-header">
+                  <div class="launchpad-icon-box">📖</div>
+                  <div>
+                    <div class="launchpad-title">Security &amp; System Glossary</div>
+                    <div class="launchpad-tag">Definitions</div>
+                  </div>
+                </div>
+                <p class="launchpad-desc">Quick reference glossary explaining technical definitions, calculations, and interpretations for all metrics.</p>
+                <div class="launchpad-footer">
+                  <button type="button" class="btn btn-sm" data-jump="glossary">Open glossary</button>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </section>
 
         <!-- 1. Latest Verification Run Section -->
         <section class="dashboard-section" id="section-verification">
@@ -206,10 +467,12 @@
           <div class="section-header">
             <h2>Layer-kill matrix</h2>
             <div style="display: flex; gap: 8px; align-items: center;">
+              <button type="button" class="btn btn-sm btn-primary" id="btn-run-layer-kill">Run Layer-Kill Matrix</button>
               <button type="button" class="how-it-works-toggle" data-target="how-layer">How this section works</button>
               <span class="text-small" id="layer-run-time"></span>
             </div>
           </div>
+          <div id="layer-run-status-bar" style="display: none; margin-top: 8px; margin-bottom: 8px; padding: 8px 12px; border-radius: var(--radius); font-size: 13px;" class="alert-info"></div>
           <div class="how-it-works-panel" id="how-layer">
             <div class="how-it-works-line"><span class="how-it-works-label">Purpose:</span>Tests defense-in-depth by systematically disabling isolation layers to ensure no single layer failure exposes tenant data.</div>
             <div class="how-it-works-line"><span class="how-it-works-label">Source:</span>Newest results/layer_kill_matrix_*.json file.</div>
@@ -253,10 +516,12 @@
           <div class="section-header">
             <h2>Mutation testing</h2>
             <div style="display: flex; gap: 8px; align-items: center;">
+              <button type="button" class="btn btn-sm btn-primary" id="btn-run-mutation">Run Mutation Suite</button>
               <button type="button" class="how-it-works-toggle" data-target="how-mut">How this section works</button>
               <span class="text-small" id="mut-run-time"></span>
             </div>
           </div>
+          <div id="mut-run-status-bar" style="display: none; margin-top: 8px; margin-bottom: 8px; padding: 8px 12px; border-radius: var(--radius); font-size: 13px;" class="alert-info"></div>
           <div class="how-it-works-panel" id="how-mut">
             <div class="how-it-works-line"><span class="how-it-works-label">Purpose:</span>Validates the sensitivity of the verification suite by deliberately introducing code faults and checking if they are detected.</div>
             <div class="how-it-works-line"><span class="how-it-works-label">Source:</span>Newest results/mutation_report_*.json file.</div>
@@ -307,22 +572,207 @@
           </div>
           <hr>
 
+          <!-- ── Live Noisy-Neighbour Panel (Redis-backed) ── -->
+          <div style="background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius); padding: 18px; margin-bottom: 24px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+              <div>
+                <h3 style="margin-bottom: 4px; display: flex; align-items: center; gap: 8px;">
+                  Live noisy-neighbour view
+                  <span style="font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 10px; background: var(--status-healthy); color: #fff; letter-spacing: 0.04em;">LIVE</span>
+                </h3>
+                <div style="font-size: 13px; color: var(--text-muted);">Real-time Redis telemetry — updates when traffic is sent to any tenant. Send traffic via <strong>Metrics &amp; Traffic → Send test traffic</strong>.</div>
+              </div>
+              <button type="button" class="btn btn-sm" id="btn-refresh-live-noisy">↺ Refresh</button>
+            </div>
+
+            <div id="live-noisy-empty" class="empty-state" style="display: none; margin: 0; padding: 14px 0 4px;">
+              No live traffic data yet. Use <strong>Metrics &amp; Traffic → Send test traffic</strong> to generate real requests.
+            </div>
+            <div id="live-noisy-error" style="display: none; font-size: 13px; color: var(--status-compromised); padding: 8px 0;"></div>
+
+            <div id="live-noisy-content" style="display: none;">
+              <!-- Noisy tenant highlight -->
+              <div id="live-noisy-highlight" style="border-left: 3px solid var(--status-compromised); padding: 10px 14px; background: rgba(255,80,80,0.07); border-radius: 0 var(--radius) var(--radius) 0; margin-bottom: 16px;">
+                <div style="font-size: 12px; font-weight: 700; letter-spacing: 0.06em; color: var(--status-compromised); margin-bottom: 4px;">NOISIEST TENANT</div>
+                <div id="live-noisy-tenant-name" style="font-size: 18px; font-weight: 700;"></div>
+                <div id="live-noisy-tenant-stats" style="font-size: 13px; color: var(--text-muted); margin-top: 4px;"></div>
+              </div>
+
+              <!-- Comparison table -->
+              <div class="table-wrapper">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Tenant</th>
+                      <th class="num">Requests (60 min)</th>
+                      <th class="num">Errors</th>
+                      <th class="num">Avg latency (ms)</th>
+                      <th class="num">Traffic share</th>
+                      <th class="num">Noisy pressure ratio</th>
+                    </tr>
+                  </thead>
+                  <tbody id="live-noisy-table-body">
+                    <!-- Populated via JS -->
+                  </tbody>
+                </table>
+              </div>
+              <p style="font-size: 12px; color: var(--text-muted); margin-top: 8px; margin-bottom: 0;">
+                <strong>Pressure ratio</strong>: how many times more requests the noisiest tenant sent compared to this neighbour. TenantShield's rate limiter caps this impact.
+              </p>
+              <div id="live-noisy-updated" style="font-size: 11px; color: var(--text-muted); margin-top: 6px;"></div>
+            </div>
+          <!-- ── Dynamic Live Benchmark Runner ── -->
+          <div style="background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius); padding: 20px; margin-bottom: 24px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 8px;">
+              <h3 style="font-size: 15px; font-weight: 600; display: flex; align-items: center; gap: 8px;">
+                <span class="badge" style="background: rgba(14,165,233,0.15); color: #0284c7; border: 1px solid rgba(14,165,233,0.3); font-weight: 700;">DYNAMIC</span>
+                Live Interactive Benchmark Runner
+              </h3>
+              <span style="font-size: 12px; color: var(--text-muted);">Generates real concurrent traffic across tenants &amp; records live p50/p95/429s</span>
+            </div>
+            <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 12px; line-height: 1.5;">
+              Choose any tenant to act as the <strong>noisy neighbor</strong>, select a <strong>protection strategy</strong> to apply, and observe the real-time isolation impact on the quiet victim. Results are appended live to the table below.
+            </p>
+
+            <!-- Strategy Legend (collapsible) -->
+            <details style="margin-bottom: 14px; background: rgba(14,165,233,0.05); border: 1px solid rgba(14,165,233,0.2); border-radius: 6px; padding: 10px 14px;">
+              <summary style="cursor: pointer; font-size: 12px; font-weight: 700; color: #0284c7; user-select: none;">📖 Strategy Guide — What does each strategy do? (click to expand)</summary>
+              <div style="margin-top: 10px; display: grid; gap: 8px; font-size: 12px;">
+                <div style="display: flex; gap: 10px; align-items: flex-start;">
+                  <span style="min-width: 20px; font-size: 15px;">🚫</span>
+                  <div><strong>Baseline (No Limit)</strong> — Zero protection. Every tenant gets full server access. <em>Purpose: shows what happens WITHOUT TenantShield. The victim's latency degrades badly.</em></div>
+                </div>
+                <div style="display: flex; gap: 10px; align-items: flex-start;">
+                  <span style="min-width: 20px; font-size: 15px;">🪣</span>
+                  <div><strong>Request Count (Token Bucket)</strong> — Each tenant is capped at <strong>15 requests per 10 seconds</strong>. Extra requests get HTTP 429. <em>Purpose: stops volume floods. Simple, fast, and effective for basic rate-limiting.</em></div>
+                </div>
+                <div style="display: flex; gap: 10px; align-items: flex-start;">
+                  <span style="min-width: 20px; font-size: 15px;">🚦</span>
+                  <div><strong>Concurrency Limiter</strong> — Each tenant can only have <strong>2 simultaneous in-flight requests</strong>. 3rd request blocks or gets rejected. <em>Purpose: prevents slow queries from hogging DB connections — unlike rate limiting, this limits "wide" concurrent load not just volume.</em></div>
+                </div>
+                <div style="display: flex; gap: 10px; align-items: flex-start;">
+                  <span style="min-width: 20px; font-size: 15px;">⏱️</span>
+                  <div><strong>Statement Timeout</strong> — Any SQL query from a tenant is auto-killed if it takes longer than <strong>250 ms</strong>. <em>Purpose: stops "expensive" noisy queries (like analytics) from starving the shared database. Best defense against heavy-query attacks.</em></div>
+                </div>
+                <div style="display: flex; gap: 10px; align-items: flex-start;">
+                  <span style="min-width: 20px; font-size: 15px;">💰</span>
+                  <div><strong>Cost Budget Limiter</strong> — Each request is assigned a "cost" (normal = 1, analytics = 10). Tenant gets a <strong>budget of 25 cost units per 10 seconds</strong>. <em>Purpose: smarter than counting requests — penalizes expensive operations more than cheap ones.</em></div>
+                </div>
+                <div style="display: flex; gap: 10px; align-items: flex-start;">
+                  <span style="min-width: 20px; font-size: 15px;">🛡️</span>
+                  <div><strong>Combined Defense</strong> — Applies Request Count + Concurrency + Statement Timeout <em>simultaneously</em>. Any layer can block the request. <em>Purpose: multi-layer protection. Best overall result — recommended for production.</em></div>
+                </div>
+              </div>
+            </details>
+
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)) auto; gap: 12px; align-items: flex-end;">
+              <div>
+                <label for="bench-noisy-tenant" style="display: block; font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px;">
+                  🔥 Noisy Tenant
+                </label>
+                <select id="bench-noisy-tenant" style="width: 100%; padding: 8px 10px; background: var(--bg-page); border: 1px solid var(--border-subtle); border-radius: 6px; color: var(--text-primary); font-size: 13px;">
+                  <option value="acme" selected>Acme Corp</option>
+                  <option value="beta">Beta Industries</option>
+                  <option value="demo">Demo Co</option>
+                </select>
+              </div>
+
+              <div>
+                <label for="bench-victim-tenant" style="display: block; font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px;">
+                  🛡️ Victim (Quiet Neighbor)
+                </label>
+                <select id="bench-victim-tenant" style="width: 100%; padding: 8px 10px; background: var(--bg-page); border: 1px solid var(--border-subtle); border-radius: 6px; color: var(--text-primary); font-size: 13px;">
+                  <option value="beta" selected>Beta Industries</option>
+                  <option value="acme">Acme Corp</option>
+                  <option value="demo">Demo Co</option>
+                </select>
+              </div>
+
+              <div>
+                <label for="bench-strategy" style="display: block; font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px;">
+                  🛡️ Protection Strategy
+                </label>
+                <select id="bench-strategy" style="width: 100%; padding: 8px 10px; background: var(--bg-page); border: 1px solid var(--border-subtle); border-radius: 6px; color: var(--text-primary); font-size: 13px;">
+                  <option value="none">🚫 Baseline — No protection</option>
+                  <option value="request_count" selected>🪣 Request Count (Token Bucket)</option>
+                  <option value="concurrency">🚦 Concurrency Limiter</option>
+                  <option value="statement_timeout">⏱️ Statement Timeout</option>
+                  <option value="cost_budget">💰 Cost Budget Limiter</option>
+                  <option value="combined">🛡️ Combined Defense (All layers)</option>
+                </select>
+              </div>
+
+              <div>
+                <label for="bench-load-type" style="display: block; font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px;">
+                  ⚡ Load Type
+                </label>
+                <select id="bench-load-type" style="width: 100%; padding: 8px 10px; background: var(--bg-page); border: 1px solid var(--border-subtle); border-radius: 6px; color: var(--text-primary); font-size: 13px;">
+                  <option value="high_volume" selected>High Volume (Flood requests)</option>
+                  <option value="expensive">Expensive (Heavy analytics queries)</option>
+                </select>
+              </div>
+
+              <div>
+                <label for="bench-duration" style="display: block; font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px;">
+                  ⏱️ Duration
+                </label>
+                <select id="bench-duration" style="width: 100%; padding: 8px 10px; background: var(--bg-page); border: 1px solid var(--border-subtle); border-radius: 6px; color: var(--text-primary); font-size: 13px;">
+                  <option value="5">5 seconds (Quick)</option>
+                  <option value="10" selected>10 seconds (Standard)</option>
+                  <option value="15">15 seconds (Stress test)</option>
+                </select>
+              </div>
+
+              <div>
+                <button id="btn-run-live-benchmark" class="btn btn-primary" style="display: flex; align-items: center; gap: 6px; height: 38px; white-space: nowrap; font-weight: 600;">
+                  <span id="bench-btn-icon">▶</span>
+                  <span id="bench-btn-text">Run Live Benchmark</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Live benchmark running/completed banner -->
+            <div id="bench-live-status" style="display: none; margin-top: 14px; padding: 12px 14px; background: rgba(14,165,233,0.08); border: 1px solid rgba(14,165,233,0.25); border-radius: 6px; font-size: 13px;">
+              <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+                <span id="bench-live-status-text" style="font-weight: 500; color: var(--text-primary);">
+                  Sending concurrent requests...
+                </span>
+                <span id="bench-live-status-stats" style="font-family: monospace; font-size: 12px; color: #0284c7;">
+                  0.0s elapsed
+                </span>
+              </div>
+              <div style="width: 100%; height: 4px; background: rgba(14,165,233,0.2); border-radius: 2px; margin-top: 8px; overflow: hidden;">
+                <div id="bench-progress-bar" style="width: 0%; height: 100%; background: #0284c7; transition: width 0.3s ease;"></div>
+              </div>
+            </div>
+
+            <!-- Last Run Result Callout -->
+            <div id="bench-result-callout" style="display: none; margin-top: 14px; padding: 12px 16px; background: rgba(34,197,94,0.08); border: 1px solid rgba(34,197,94,0.3); border-radius: 6px; font-size: 13px;">
+              <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+                <span id="bench-result-callout-text" style="font-weight: 500; color: var(--text-primary);"></span>
+                <span class="badge" style="background: rgba(34,197,94,0.2); color: #16a34a; font-weight: 700;">ADDED TO TABLE BELOW ↓</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── Static Benchmark Results ── -->
           <div id="noisy-empty" class="empty-state" style="display: none;">
-            No noisy-neighbour experiment found. Run: <code>python -m loadtests.runner</code>
+            No noisy-neighbour benchmark found. Run: <code>python -m loadtests.runner</code>
           </div>
 
           <div id="noisy-content">
+            <h3 style="margin-bottom: 12px; font-size: 15px; color: var(--text-secondary);">Benchmark Results Table</h3>
             <div class="table-wrapper">
               <table>
                 <thead>
                   <tr>
                     <th data-glossary="each limiter strategy">Strategy</th>
                     <th data-glossary="each load type">Load type</th>
-                    <th class="num" data-glossary="p50">Beta p50 (ms)</th>
-                    <th class="num" data-glossary="p95">Beta p95 (ms)</th>
-                    <th class="num" data-glossary="Beta error rate">Beta err rate</th>
-                    <th class="num" data-glossary="Acme 429s">Acme 429s</th>
-                    <th class="num" data-glossary="Acme timeouts">Acme timeouts</th>
+                    <th class="num" data-glossary="p50">Victim p50 (ms)</th>
+                    <th class="num" data-glossary="p95">Victim p95 (ms)</th>
+                    <th class="num" data-glossary="Beta error rate">Victim err rate</th>
+                    <th class="num" data-glossary="Acme 429s">Noisy 429s</th>
+                    <th class="num" data-glossary="Acme timeouts">Noisy timeouts</th>
                   </tr>
                 </thead>
                 <tbody id="noisy-table-body">
@@ -367,7 +817,7 @@
                 <table>
                   <thead>
                     <tr>
-                      <th>Tenant ID</th>
+                      <th>Tenant</th>
                       <th class="num" data-glossary="Requests">Requests</th>
                       <th class="num" data-glossary="Errors">Errors</th>
                       <th class="num" data-glossary="Average latency">Avg latency (ms)</th>
@@ -388,10 +838,18 @@
             <div id="traffic-demo-panel" style="margin-top: 24px; background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius); padding: 18px;">
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
                 <div>
-                  <h3 style="margin-bottom: 4px;">Send test traffic (Demo Co)</h3>
+                  <h3 style="margin-bottom: 4px;">Send test traffic</h3>
                   <div style="font-size: 13px; color: var(--text-muted);">Generates controlled traffic: 10 valid requests (GET /documents) and 3 invalid requests (GET /documents/&lt;id&gt; → 404).</div>
                 </div>
-                <button type="button" class="btn btn-primary" id="btn-send-test-traffic">Send test traffic</button>
+                <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                  <label for="traffic-tenant-select" style="font-weight: 500; font-size: 13px; color: var(--text-secondary);">Target Tenant:</label>
+                  <select id="traffic-tenant-select" style="padding: 6px 12px; border-radius: var(--radius); border: 1px solid var(--border-subtle); background: var(--bg-surface-elevated); color: var(--text-primary); font-size: 13px; cursor: pointer;">
+                    <option value="acme">Acme Corp (Real Tenant)</option>
+                    <option value="beta">Beta Industries (Real Tenant)</option>
+                    <option value="demo" selected>Demo Co (Sandbox)</option>
+                  </select>
+                  <button type="button" class="btn btn-primary" id="btn-send-test-traffic">Send test traffic</button>
+                </div>
               </div>
               <div id="traffic-status-msg" style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px; display: none;"></div>
 
@@ -625,14 +1083,24 @@
             <h2>Try one attack by hand</h2>
             <span class="text-small">Execute a single targeted cross-tenant attack against live endpoints</span>
           </div>
-          <div class="demo-page-note" style="margin-bottom: 16px; padding: 12px 16px; background: rgba(56, 189, 248, 0.08); border-left: 3px solid var(--accent); border-radius: var(--radius); font-size: 13px; color: var(--text-main);">
-            This is a single attack in normal mode; the full suite runs seven attacks.
-          </div>
           <hr>
 
-          <div style="background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius); padding: 16px; margin-bottom: 16px;">
+          <div style="background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius); padding: 18px; margin-bottom: 16px;">
+            <!-- Target Architecture Mode Selector -->
+            <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; padding-bottom: 14px; border-bottom: 1px solid var(--border-subtle);">
+              <span style="font-weight: 600; font-size: 13px; color: var(--text-secondary);">Target Architecture</span>
+              <div style="display: flex; gap: 8px;">
+                <label style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; cursor: pointer; padding: 5px 14px; background: rgba(16, 185, 129, 0.1); border: 1px solid #10b981; border-radius: 20px; color: #10b981;">
+                  <input type="radio" name="attack-target-mode" value="secure" checked> 🛡️ Secure Core
+                </label>
+                <label style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; cursor: pointer; padding: 5px 14px; background: rgba(239, 68, 68, 0.1); border: 1px solid #ef4444; border-radius: 20px; color: #ef4444;">
+                  <input type="radio" name="attack-target-mode" value="vulnerable"> ⚠️ Flawed Route
+                </label>
+              </div>
+            </div>
+
             <div style="display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-end;">
-              <div style="flex: 1; min-width: 160px;">
+              <div style="flex: 1; min-width: 140px;">
                 <label class="form-label" for="attack-select-attacker">Attacker tenant</label>
                 <select id="attack-select-attacker" class="form-input" style="font-size: 13px;">
                   <option value="Acme" selected>Acme</option>
@@ -640,7 +1108,7 @@
                   <option value="Demo Co">Demo Co</option>
                 </select>
               </div>
-              <div style="flex: 1; min-width: 160px;">
+              <div style="flex: 1; min-width: 140px;">
                 <label class="form-label" for="attack-select-victim">Victim tenant</label>
                 <select id="attack-select-victim" class="form-input" style="font-size: 13px;">
                   <option value="Acme">Acme</option>
@@ -648,40 +1116,50 @@
                   <option value="Demo Co">Demo Co</option>
                 </select>
               </div>
-              <div style="flex: 2; min-width: 220px;">
+              <div style="flex: 2; min-width: 200px;">
                 <label class="form-label" for="attack-select-action">Attack action</label>
                 <select id="attack-select-action" class="form-input" style="font-size: 13px;">
                   <option value="read" selected>Read document (GET /documents/{id})</option>
                   <option value="update">Update document (PUT /documents/{id})</option>
                   <option value="delete">Delete document (DELETE /documents/{id})</option>
-                  <option value="create-into-victim">Create injection (POST /documents with victim tenant_id)</option>
+                  <option value="create-into-victim">Create injection (POST /documents)</option>
                 </select>
               </div>
               <div>
-                <button type="button" class="btn btn-primary" id="btn-run-attack">Run attack</button>
+                <button type="button" class="btn btn-primary" id="btn-run-attack" style="padding: 9px 20px; font-weight: 600;">Run attack</button>
               </div>
             </div>
           </div>
 
           <div id="attack-alert-box" class="alert alert-error" style="display: none; margin-bottom: 16px;"></div>
 
-          <!-- 6-step list display -->
-          <div id="attack-steps-container" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px;">
+          <!-- Compact Execution Progress -->
+          <div id="attack-steps-container" style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px;">
             <!-- Populated via textContent -->
           </div>
 
           <!-- Results Summary Card -->
-          <div id="attack-result-card" style="display: none; background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius); padding: 16px;">
-            <h3 style="margin-top: 0; margin-bottom: 12px; font-size: 15px;">Attack evaluation result</h3>
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 12px;">
-              <div><span class="text-small" style="color: var(--text-muted);">Request:</span> <strong id="attack-res-request" style="font-family: var(--font-mono); font-size: 12px;"></strong></div>
-              <div><span class="text-small" style="color: var(--text-muted);">HTTP status:</span> <strong id="attack-res-status" class="tabular-nums"></strong></div>
-              <div><span class="text-small" style="color: var(--text-muted);">Outcome:</span> <span id="attack-res-outcome"></span></div>
-              <div><span class="text-small" style="color: var(--text-muted);">Blocking control:</span> <strong id="attack-res-control"></strong></div>
-              <div><span class="text-small" style="color: var(--text-muted);">Victim document state:</span> <span id="attack-res-victim-state"></span></div>
+          <div id="attack-result-card" style="display: none; background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius); padding: 18px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px;">
+              <h3 style="margin: 0; font-size: 15px; font-weight: 600;">Attack Result</h3>
+              <div id="attack-res-outcome"></div>
             </div>
-            <div style="padding: 8px 12px; background: var(--bg-base); border-radius: var(--radius); font-size: 13px;">
-              <span class="text-small" style="color: var(--text-muted); font-weight: 600;">Explanation:</span> <span id="attack-res-explanation"></span>
+
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 14px;">
+              <div><span class="text-small" style="color: var(--text-muted); display: block; margin-bottom: 2px;">Target Request</span> <strong id="attack-res-request" style="font-family: var(--font-mono); font-size: 12px;"></strong></div>
+              <div><span class="text-small" style="color: var(--text-muted); display: block; margin-bottom: 2px;">HTTP Status</span> <strong id="attack-res-status" class="tabular-nums" style="font-size: 14px;"></strong></div>
+              <div><span class="text-small" style="color: var(--text-muted); display: block; margin-bottom: 2px;">Blocking Control</span> <strong id="attack-res-control"></strong></div>
+              <div><span class="text-small" style="color: var(--text-muted); display: block; margin-bottom: 2px;">Victim Canary State</span> <span id="attack-res-victim-state"></span></div>
+            </div>
+
+            <div style="padding: 10px 14px; background: var(--bg-base); border-radius: var(--radius); font-size: 13px; line-height: 1.4;">
+              <span style="color: var(--text-muted); font-weight: 600;">Summary:</span> <span id="attack-res-explanation"></span>
+            </div>
+
+            <!-- Leaked payload display if any -->
+            <div id="attack-res-leak-box" style="display: none; margin-top: 14px; padding: 12px 14px; background: rgba(239, 68, 68, 0.08); border: 1px solid #ef4444; border-radius: var(--radius); font-size: 13px;">
+              <div style="font-weight: 700; color: #ef4444; margin-bottom: 6px;">🚨 EXFILTRATED VICTIM DATA:</div>
+              <pre id="attack-res-leak-content" style="margin: 0; padding: 8px; background: rgba(0,0,0,0.2); border-radius: 4px; font-family: var(--font-mono); font-size: 11px; white-space: pre-wrap; word-break: break-all; color: #ef4444; max-height: 120px; overflow-y: auto;"></pre>
             </div>
           </div>
         </section>
