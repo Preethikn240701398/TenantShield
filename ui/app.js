@@ -106,6 +106,9 @@
     loginForm.reset();
     docForm.reset();
 
+    // Always hide the delete-confirmation modal before returning to login
+    confirmModal.style.display = 'none';
+
     // Reset views
     headerMeta.style.display = 'none';
     appShell.style.display = 'none';
@@ -113,6 +116,16 @@
     adminDashboard.style.display = 'none';
     loginView.style.display = 'flex';
   }
+
+  // Hide any lingering modal on BFCache restore (browser back/forward or hard reload)
+  window.addEventListener('pageshow', function () {
+    if (!authToken) {
+      handleSignOut();
+    }
+  });
+
+  // Explicitly reset UI to initial signed-out state on script load
+  handleSignOut();
 
   function showLoginError(msg) {
     loginError.textContent = msg;
