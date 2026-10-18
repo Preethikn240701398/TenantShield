@@ -1,3 +1,11 @@
+# ==============================================================================
+# WARNING: OPTIONAL — NOT TESTED
+# This docker-compose.yml is provided for reference only. It has NOT been used
+# or tested in any of the experiments documented in results/ or docs/. All
+# documented experiments ran on native Windows PostgreSQL 16 and Memurai
+# Developer (localhost:6379). Do NOT run any experiments or claim results from
+# this file without independently validating the setup.
+# ==============================================================================
 version: "3.8"
 
 services:
