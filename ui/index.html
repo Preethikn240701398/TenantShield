@@ -383,6 +383,57 @@
                 <div id="metrics-chart-container"></div>
               </div>
             </div>
+
+            <!-- Send Test Traffic Panel -->
+            <div id="traffic-demo-panel" style="margin-top: 24px; background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius); padding: 18px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+                <div>
+                  <h3 style="margin-bottom: 4px;">Send test traffic (Demo Co)</h3>
+                  <div style="font-size: 13px; color: var(--text-muted);">Generates controlled traffic: 10 valid requests (GET /documents) and 3 invalid requests (GET /documents/&lt;id&gt; → 404).</div>
+                </div>
+                <button type="button" class="btn btn-primary" id="btn-send-test-traffic">Send test traffic</button>
+              </div>
+              <div id="traffic-status-msg" style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px; display: none;"></div>
+
+              <div id="traffic-progress-container" style="display: none; margin-bottom: 16px;" class="table-wrapper">
+                <table>
+                  <thead>
+                    <tr>
+                      <th class="num">#</th>
+                      <th>Kind</th>
+                      <th>Method</th>
+                      <th>Path</th>
+                      <th class="num">Status</th>
+                      <th class="num">Duration (ms)</th>
+                    </tr>
+                  </thead>
+                  <tbody id="traffic-progress-tbody">
+                    <!-- Populated via textContent -->
+                  </tbody>
+                </table>
+              </div>
+
+              <!-- Comparison Table -->
+              <div id="traffic-comparison-container" style="display: none;">
+                <h4 style="margin-bottom: 8px;">Demo Co metrics comparison</h4>
+                <div class="table-wrapper" style="margin-bottom: 8px;">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Metric</th>
+                        <th class="num">Before</th>
+                        <th class="num">After</th>
+                        <th class="num">Change</th>
+                      </tr>
+                    </thead>
+                    <tbody id="traffic-comparison-tbody">
+                      <!-- Populated via textContent -->
+                    </tbody>
+                  </table>
+                </div>
+                <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 0;">the invalid requests are counted as errors, which is why Errors goes up.</p>
+              </div>
+            </div>
           </div>
         </section>
 

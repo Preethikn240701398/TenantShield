@@ -1129,6 +1129,7 @@
     loadMutationSection();
     loadNoisyNeighbourSection();
     loadMetricsSection();
+    setupSendTestTrafficButton();
     loadKeysSection();
     setupKeyLifecycleDemo();
     loadGlossarySection();
@@ -1880,6 +1881,168 @@
         res7Box.textContent = 'Error: ' + err.message;
       } finally {
         step7Btn.disabled = false;
+      }
+    });
+  }
+
+  // 8. Send Test Traffic Controller
+  function setupSendTestTrafficButton() {
+    var btn = document.getElementById('btn-send-test-traffic');
+    var statusMsg = document.getElementById('traffic-status-msg');
+    var progressContainer = document.getElementById('traffic-progress-container');
+    var progressTbody = document.getElementById('traffic-progress-tbody');
+    var comparisonContainer = document.getElementById('traffic-comparison-container');
+    var comparisonTbody = document.getElementById('traffic-comparison-tbody');
+
+    if (!btn || btn.getAttribute('data-bound')) return;
+    btn.setAttribute('data-bound', 'true');
+
+    btn.addEventListener('click', async function () {
+      btn.disabled = true;
+      btn.textContent = 'Sending traffic...';
+      if (statusMsg) {
+        statusMsg.style.display = 'block';
+        statusMsg.textContent = 'Initiating test traffic for Demo Co (10 valid, 3 invalid requests)...';
+      }
+
+      while (progressTbody.firstChild) progressTbody.removeChild(progressTbody.firstChild);
+      while (comparisonTbody.firstChild) comparisonTbody.removeChild(comparisonTbody.firstChild);
+      if (progressContainer) progressContainer.style.display = 'block';
+      if (comparisonContainer) comparisonContainer.style.display = 'none';
+
+      try {
+        var startRes = await apiFetch('/admin/demo/traffic/start', {
+          method: 'POST'
+        });
+        var startData = await startRes.json();
+        if (!startRes.ok) {
+          throw new Error(startData.detail || 'Failed to start traffic.');
+        }
+
+        var runId = startData.run_id;
+        var renderedCount = 0;
+
+        var pollInterval = setInterval(async function () {
+          try {
+            var stRes = await apiFetch('/admin/demo/traffic/status/' + runId);
+            if (!stRes.ok) return;
+            var stData = await stRes.json();
+
+            var progress = stData.progress || [];
+            while (renderedCount < progress.length) {
+              var rec = progress[renderedCount];
+              var tr = document.createElement('tr');
+
+              var tdNum = document.createElement('td');
+              tdNum.className = 'num';
+              tdNum.textContent = rec.number;
+              tr.appendChild(tdNum);
+
+              var tdKind = document.createElement('td');
+              var badgeClass = rec.kind === 'valid' ? 'badge badge-pass' : 'badge badge-fail';
+              var spanKind = document.createElement('span');
+              spanKind.className = badgeClass;
+              spanKind.textContent = rec.kind;
+              tdKind.appendChild(spanKind);
+              tr.appendChild(tdKind);
+
+              var tdMethod = document.createElement('td');
+              tdMethod.textContent = rec.method;
+              tr.appendChild(tdMethod);
+
+              var tdPath = document.createElement('td');
+              var codePath = document.createElement('code');
+              codePath.textContent = rec.path;
+              tdPath.appendChild(codePath);
+              tr.appendChild(tdPath);
+
+              var tdStatus = document.createElement('td');
+              tdStatus.className = 'num';
+              tdStatus.textContent = rec.status_code;
+              tr.appendChild(tdStatus);
+
+              var tdDur = document.createElement('td');
+              tdDur.className = 'num';
+              tdDur.textContent = rec.duration_ms.toFixed(2);
+              tr.appendChild(tdDur);
+
+              progressTbody.appendChild(tr);
+              renderedCount++;
+            }
+
+            if (stData.state === 'finished') {
+              clearInterval(pollInterval);
+              btn.disabled = false;
+              btn.textContent = 'Send test traffic';
+              if (statusMsg) {
+                statusMsg.textContent = 'Traffic run completed (' + renderedCount + ' requests sent).';
+              }
+
+              // Render comparison table
+              if (stData.comparison) {
+                while (comparisonTbody.firstChild) comparisonTbody.removeChild(comparisonTbody.firstChild);
+                var comp = stData.comparison;
+                var metricsOrder = [
+                  { key: 'requests', label: 'Requests' },
+                  { key: 'errors', label: 'Errors' },
+                  { key: 'avg_latency_ms', label: 'Avg latency (ms)' }
+                ];
+
+                for (var m = 0; m < metricsOrder.length; m++) {
+                  var mInfo = metricsOrder[m];
+                  var mData = comp[mInfo.key] || { before: 0, after: 0, diff: 0 };
+                  var trC = document.createElement('tr');
+
+                  var tdLabel = document.createElement('td');
+                  tdLabel.style.fontWeight = '500';
+                  tdLabel.textContent = mInfo.label;
+                  trC.appendChild(tdLabel);
+
+                  var tdBef = document.createElement('td');
+                  tdBef.className = 'num';
+                  tdBef.textContent = mData.before;
+                  trC.appendChild(tdBef);
+
+                  var tdAft = document.createElement('td');
+                  tdAft.className = 'num';
+                  tdAft.textContent = mData.after;
+                  trC.appendChild(tdAft);
+
+                  var tdDiff = document.createElement('td');
+                  tdDiff.className = 'num';
+                  var diffVal = mData.diff;
+                  tdDiff.textContent = (diffVal > 0 ? '+' : '') + diffVal;
+                  if (diffVal > 0 && mInfo.key === 'errors') {
+                    tdDiff.style.color = 'var(--status-compromised)';
+                  }
+                  trC.appendChild(tdDiff);
+
+                  comparisonTbody.appendChild(trC);
+                }
+
+                if (comparisonContainer) comparisonContainer.style.display = 'block';
+              }
+
+              await loadMetricsSection();
+            } else if (stData.state === 'failed') {
+              clearInterval(pollInterval);
+              btn.disabled = false;
+              btn.textContent = 'Send test traffic';
+              if (statusMsg) {
+                statusMsg.textContent = 'Traffic run ended with error.';
+              }
+            }
+          } catch (pErr) {
+            // Keep polling
+          }
+        }, 800);
+
+      } catch (err) {
+        btn.disabled = false;
+        btn.textContent = 'Send test traffic';
+        if (statusMsg) {
+          statusMsg.textContent = 'Error: ' + err.message;
+        }
       }
     });
   }
