@@ -575,6 +575,50 @@
           </div>
         </section>
 
+        <!-- Configuration Check Section -->
+        <section class="dashboard-section" id="section-config">
+          <div class="section-header">
+            <h2>Configuration check</h2>
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <button type="button" class="btn btn-sm btn-primary" id="btn-run-config-check">Run check</button>
+              <span class="text-small" id="config-check-time"></span>
+            </div>
+          </div>
+          <div class="demo-page-note" style="margin-bottom: 16px; padding: 12px 16px; background: rgba(56, 189, 248, 0.08); border-left: 3px solid var(--accent); border-radius: var(--radius); font-size: 13px; color: var(--text-main);">
+            Read-only audit of database RLS, app role privileges, and security control flags. Never writes or modifies data.
+          </div>
+          <hr>
+
+          <div id="config-check-alert" class="alert alert-error" style="display: none; margin-bottom: 16px;"></div>
+
+          <div id="config-check-summary" style="display: none; margin-bottom: 16px;">
+            <div class="section-summary-row">
+              <div class="summary-stat">Overall: <strong id="config-check-overall"></strong></div>
+              <div class="summary-stat">Total checks: <strong id="config-check-total" class="tabular-nums"></strong></div>
+              <div class="summary-stat">Passed: <strong id="config-check-passed" class="tabular-nums"></strong></div>
+              <div class="summary-stat">Failed: <strong id="config-check-failed" class="tabular-nums"></strong></div>
+            </div>
+          </div>
+
+          <div id="config-check-content" style="display: none;">
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Check</th>
+                    <th>Status</th>
+                    <th>Detail</th>
+                    <th>Recommendation</th>
+                  </tr>
+                </thead>
+                <tbody id="config-check-tbody">
+                  <!-- Populated via textContent -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
         <!-- Try One Attack By Hand Section -->
         <section class="dashboard-section" id="section-attack">
           <div class="section-header">

@@ -410,7 +410,7 @@
       adminDashboard.style.display = 'block';
 
       var slug = hash.replace(/^#admin\/?/, '').replace(/^#/, '');
-      var validSlugs = ['verification', 'layer-kill', 'mutation', 'noisy-neighbour', 'metrics', 'keys', 'demo', 'attack', 'glossary'];
+      var validSlugs = ['verification', 'layer-kill', 'mutation', 'noisy-neighbour', 'metrics', 'keys', 'demo', 'config', 'attack', 'glossary'];
       if (validSlugs.indexOf(slug) === -1) {
         slug = 'verification';
       }
@@ -1033,6 +1033,7 @@
       { id: 'section-metrics', slug: 'metrics', label: 'Tenant metrics' },
       { id: 'section-keys', slug: 'keys', label: 'Tenant keys' },
       { id: 'section-demo', slug: 'demo', label: 'Key lifecycle demo' },
+      { id: 'section-config', slug: 'config', label: 'Config check' },
       { id: 'section-attack', slug: 'attack', label: 'Try one attack' },
       { id: 'section-glossary', slug: 'glossary', label: 'Glossary' }
     ];
@@ -1134,6 +1135,7 @@
     loadKeysSection();
     setupKeyLifecycleDemo();
     setupAttackDemo();
+    loadConfigCheckSection();
     loadGlossarySection();
     setupHowItWorksToggles();
     setupStaticGlossaryButtons();
@@ -2049,7 +2051,102 @@
     });
   }
 
-  // 9. Try One Attack by Hand Controller
+  // 9. Configuration Check Section
+  async function loadConfigCheckSection() {
+    var btn = document.getElementById('btn-run-config-check');
+    var timeEl = document.getElementById('config-check-time');
+    var alertEl = document.getElementById('config-check-alert');
+    var summaryEl = document.getElementById('config-check-summary');
+    var contentEl = document.getElementById('config-check-content');
+    var tbody = document.getElementById('config-check-tbody');
+    var overallEl = document.getElementById('config-check-overall');
+    var totalEl = document.getElementById('config-check-total');
+    var passedEl = document.getElementById('config-check-passed');
+    var failedEl = document.getElementById('config-check-failed');
+
+    if (!btn) return;
+
+    async function runCheck() {
+      btn.disabled = true;
+      btn.textContent = 'Checking...';
+      if (alertEl) alertEl.style.display = 'none';
+      if (summaryEl) summaryEl.style.display = 'none';
+      if (contentEl) contentEl.style.display = 'none';
+
+      try {
+        var res = await apiFetch('/admin/dashboard/config-check');
+        var data = await res.json();
+
+        if (!res.ok) {
+          if (alertEl) {
+            alertEl.textContent = data.detail || 'Failed to run configuration check.';
+            alertEl.style.display = 'block';
+          }
+          return;
+        }
+
+        // Summary row
+        if (overallEl) {
+          while (overallEl.firstChild) overallEl.removeChild(overallEl.firstChild);
+          overallEl.appendChild(createStatusBadge(data.overall_status, getDotTypeForStatus(data.overall_status)));
+        }
+        if (totalEl) totalEl.textContent = data.total_checks;
+        if (passedEl) passedEl.textContent = data.passed;
+        if (failedEl) failedEl.textContent = data.failed;
+        if (summaryEl) summaryEl.style.display = 'block';
+
+        // Populate checks table
+        if (tbody) {
+          while (tbody.firstChild) tbody.removeChild(tbody.firstChild);
+          var checks = data.checks || [];
+          for (var i = 0; i < checks.length; i++) {
+            var c = checks[i];
+            var tr = document.createElement('tr');
+
+            var tdName = document.createElement('td');
+            tdName.style.fontWeight = '500';
+            tdName.textContent = c.name;
+            tr.appendChild(tdName);
+
+            var tdStatus = document.createElement('td');
+            tdStatus.appendChild(createStatusBadge(c.status, getDotTypeForStatus(c.status === 'PASS' ? 'BLOCKED' : 'LEAKED')));
+            tr.appendChild(tdStatus);
+
+            var tdDetail = document.createElement('td');
+            tdDetail.style.fontSize = '12px';
+            tdDetail.textContent = c.detail;
+            tr.appendChild(tdDetail);
+
+            var tdRec = document.createElement('td');
+            tdRec.style.fontSize = '12px';
+            tdRec.style.color = 'var(--text-muted)';
+            tdRec.textContent = c.recommendation || '—';
+            tr.appendChild(tdRec);
+
+            tbody.appendChild(tr);
+          }
+        }
+
+        if (timeEl) timeEl.textContent = new Date().toLocaleString();
+        if (contentEl) contentEl.style.display = 'block';
+      } catch (err) {
+        if (alertEl) {
+          alertEl.textContent = err.message || 'Error running configuration check.';
+          alertEl.style.display = 'block';
+        }
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Run check';
+      }
+    }
+
+    if (!btn.getAttribute('data-bound')) {
+      btn.setAttribute('data-bound', 'true');
+      btn.addEventListener('click', runCheck);
+    }
+  }
+
+  // 10. Try One Attack by Hand Controller
   function setupAttackDemo() {
     var selAttacker = document.getElementById('attack-select-attacker');
     var selVictim = document.getElementById('attack-select-victim');
