@@ -408,24 +408,4 @@ Results saved to: `results/noisy_neighbour_runs_<timestamp>.json`, `noisy_neighb
 
 ---
 
-## 13. Limitations
 
-The following limitations apply to all results in `results/`. They do not prove or disprove general security.
-
-1. **Two tenants in core matrix.** The baseline isolation tests primarily evaluate pairs of tenants (Acme, Beta, and Demo Co). Highly distributed multi-tenant behaviour across hundreds of concurrent tenants has not been modeled.
-
-2. **Attack direction.** Baseline verifier runs execute attacks where Tenant A (Acme) attempts to access Tenant B (Beta) resources. Reverse direction and custom attacker/victim combinations are exercised in the interactive Single Attack Demo.
-
-3. **Attack set scope.** The automated verifier exercises cross-tenant create injection, read, update, delete, admin bypass, and admin injection. It demonstrates defense-in-depth against common OWASP/multi-tenant vectors but does not cover every theoretical vector.
-
-4. **Mutation set.** Mutation testing covers 5 injected isolation bugs. Additional edge-case bugs are not tested.
-
-5. **Single machine environment.** All experiments ran on one machine (AMD Ryzen 7 7840HS, 16 GB RAM, Windows 11) with one uvicorn worker. Results are not representative of distributed multi-node Kubernetes or serverless clusters.
-
-6. **Noisy-neighbour scope.** The expensive-load experiment used a burst volume that stayed under the rate-limit quota. The claim about request-count limiting vs expensive queries could not be confirmed or refuted at the tested burst size (see `results/noisy_neighbour_report.md`).
-
-7. **Some runs tested through in-process HTTP.** The mutation tester and layer-kill matrix issue HTTP calls via httpx to a subprocess server. Physical network switch latency is not captured.
-
-8. **Results describe these specific runs only.** The numbers in `results/` are the output of the runs described in `results/` and timestamped JSON files. They do not constitute an absolute proof of security or insecurity.
-
-9. **No Docker testing.** The optional `docker-compose.yml` is provided for reference only. The primary supported environment is native Windows PostgreSQL 16 and Memurai Developer.
