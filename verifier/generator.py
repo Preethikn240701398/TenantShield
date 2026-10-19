@@ -51,14 +51,12 @@ class AttackGenerator:
         """
         discovered = []
         for path_pattern, path_item in self.paths.items():
-            # Skip intentionally vulnerable demo routes used strictly for manual comparative demonstration
-            if path_pattern.startswith("/vulnerable"):
-                continue
             matches = self.ID_PARAM_PATTERN.findall(path_pattern)
             if matches:
                 discovered.append({
                     "path": path_pattern,
                     "params": matches,
+                    "is_vulnerable_layer": path_pattern.startswith("/vulnerable"),
                     "methods": [
                         m.upper() for m in path_item.keys()
                         if m.lower() in ("get", "post", "put", "patch", "delete")
@@ -73,9 +71,8 @@ class AttackGenerator:
         attacks: List[AttackSpec] = []
 
         for path_pattern, path_item in self.paths.items():
-            # Skip intentionally vulnerable demo routes used strictly for manual comparative demonstration
-            if path_pattern.startswith("/vulnerable"):
-                continue
+            is_vuln = path_pattern.startswith("/vulnerable")
+            prefix = "[Vulnerable Demo] " if is_vuln else ""
             matches = self.ID_PARAM_PATTERN.findall(path_pattern)
 
             # 1. Path-parameterized endpoints (e.g. /documents/{document_id}, /admin/keys/{tenant_id}/...)
@@ -90,11 +87,12 @@ class AttackGenerator:
                         continue
 
                     summary = op_details.get("summary", "")
+                    meta = {"is_vulnerable_layer": is_vuln}
 
                     if method == "GET":
                         attacks.append(
                             AttackSpec(
-                                name=f"Cross-Tenant Read: {method} {path_pattern}",
+                                name=f"{prefix}Cross-Tenant Read: {method} {path_pattern}",
                                 category="read",
                                 method=method,
                                 path_template=path_pattern,
@@ -104,6 +102,7 @@ class AttackGenerator:
                                     f"Tenant A attempts unauthorized GET on Tenant B's {param_name} "
                                     f"via {path_pattern} ({summary})."
                                 ),
+                                metadata=meta,
                             )
                         )
                     elif method in ("PUT", "PATCH"):
@@ -113,7 +112,7 @@ class AttackGenerator:
                         }
                         attacks.append(
                             AttackSpec(
-                                name=f"Cross-Tenant Update: {method} {path_pattern}",
+                                name=f"{prefix}Cross-Tenant Update: {method} {path_pattern}",
                                 category="update",
                                 method=method,
                                 path_template=path_pattern,
@@ -124,12 +123,13 @@ class AttackGenerator:
                                     f"Tenant A attempts unauthorized {method} tampering with Tenant B's "
                                     f"{param_name} via {path_pattern}."
                                 ),
+                                metadata=meta,
                             )
                         )
                     elif method == "DELETE":
                         attacks.append(
                             AttackSpec(
-                                name=f"Cross-Tenant Delete: DELETE {path_pattern}",
+                                name=f"{prefix}Cross-Tenant Delete: DELETE {path_pattern}",
                                 category="delete",
                                 method="DELETE",
                                 path_template=path_pattern,
@@ -139,6 +139,7 @@ class AttackGenerator:
                                     f"Tenant A attempts unauthorized destruction of Tenant B's "
                                     f"{param_name} via {path_pattern}."
                                 ),
+                                metadata=meta,
                             )
                         )
                     elif method == "POST":

@@ -182,6 +182,7 @@ async def get_verification_report(
         "total_attacks_run": raw_summary.get("total_attacks_run", len(raw_attacks)),
         "blocked_attacks": raw_summary.get("blocked_attacks", 0),
         "leaked_attacks": raw_summary.get("leaked_attacks", 0),
+        "expected_leaks": raw_summary.get("expected_leaks", 0),
         "inconclusive_attacks": raw_summary.get("inconclusive_attacks", 0),
         "tenant_b_canary_integrity": raw_summary.get("tenant_b_canary_integrity", "UNKNOWN"),
         "list_leak_check": raw_summary.get("list_leak_check", "UNKNOWN"),

@@ -328,6 +328,9 @@
     if (s === 'LEAKED' || s === 'COMPROMISED' || s === 'DESTROYED' || s === 'LEAK_DETECTED' || s === 'MISSED') {
       return 'dot-leaked';
     }
+    if (s === 'EXPECTED_LEAK' || s === 'EXPECTED LEAK' || s === 'FLAWED_DEMO') {
+      return 'dot-expected-leak';
+    }
     if (s === 'RETIRED' || s === 'INCONCLUSIVE' || s === 'MASKED') {
       return 'dot-retired';
     }
@@ -1664,6 +1667,17 @@
       document.getElementById('verif-leaked').textContent = data.summary.leaked_attacks;
       document.getElementById('verif-inconclusive').textContent = data.summary.inconclusive_attacks;
 
+      var expStat = document.getElementById('verif-expected-stat');
+      var expVal = document.getElementById('verif-expected-leaks');
+      if (expStat && expVal) {
+        if (data.summary.expected_leaks !== undefined && data.summary.expected_leaks > 0) {
+          expStat.style.display = 'inline-block';
+          expVal.textContent = data.summary.expected_leaks;
+        } else {
+          expStat.style.display = 'none';
+        }
+      }
+
       var canaryEl = document.getElementById('verif-canary');
       while (canaryEl.firstChild) canaryEl.removeChild(canaryEl.firstChild);
       canaryEl.textContent = data.summary.tenant_b_canary_integrity + ' ';
@@ -1691,6 +1705,12 @@
         var codePath = document.createElement('code');
         codePath.textContent = a.target_path;
         tdPath.appendChild(codePath);
+        if (a.target_path && a.target_path.indexOf('/vulnerable') !== -1) {
+          var badgeFlawed = document.createElement('span');
+          badgeFlawed.className = 'badge-flawed';
+          badgeFlawed.textContent = 'Flawed Demo';
+          tdPath.appendChild(badgeFlawed);
+        }
         tr.appendChild(tdPath);
 
         var tdStatus = document.createElement('td');

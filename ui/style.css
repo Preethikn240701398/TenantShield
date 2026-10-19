@@ -349,8 +349,25 @@ tbody tr:hover {
   background-color: #cf222e;
 }
 
+.dot-expected-leak, .dot-warning, .dot-flawed {
+  background-color: #d97706;
+}
+
 .dot-inconclusive, .dot-retired, .dot-masked, .dot-unknown {
   background-color: #8c959f;
+}
+
+.badge-flawed {
+  display: inline-block;
+  background: rgba(217, 119, 6, 0.15);
+  color: #b45309;
+  border: 1px solid rgba(217, 119, 6, 0.35);
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 1px 6px;
+  margin-left: 6px;
+  vertical-align: middle;
 }
 
 /* Buttons */

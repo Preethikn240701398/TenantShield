@@ -163,6 +163,9 @@ class VerificationRunner:
     CANARY_TITLE_B = "Beta Confidential Research Project"
     CANARY_TITLE_A = "Acme Q3 Operational Plan"
 
+    VULN_CANARY_SECRET = "VULNERABLE_CANARY_SECRET_DISPOSABLE_CONTRAST"
+    VULN_CANARY_TITLE = "Beta Disposable Vulnerable Target"
+
     def __init__(self, base_url: str = "http://test"):
         self.base_url = base_url
         self.token_a: Optional[str] = None
@@ -171,6 +174,7 @@ class VerificationRunner:
         self.tenant_id_b: Optional[str] = None
         self.canary_doc_a: Optional[Dict[str, Any]] = None
         self.canary_doc_b: Optional[Dict[str, Any]] = None
+        self.vuln_canary_doc_b: Optional[Dict[str, Any]] = None
         self.results: List[Dict[str, Any]] = []
         # (doc_id, auth_token) for documents created by attacks – deleted at end
         self._attack_created_doc_ids: List[Tuple[str, str]] = []
@@ -228,6 +232,18 @@ class VerificationRunner:
         if res_doc_b.status_code != 201:
             raise RuntimeError(f"Setup failed: Could not create Tenant B canary document ({res_doc_b.status_code})")
         self.canary_doc_b = res_doc_b.json()
+
+        # 5. Provision Dedicated Disposable Canary for Vulnerable Layer Testing
+        res_doc_b_vuln = await client.post(
+            "/documents",
+            json={"title": self.VULN_CANARY_TITLE, "content": self.VULN_CANARY_SECRET},
+            headers={"Authorization": f"Bearer {self.token_b}"},
+        )
+        if res_doc_b_vuln.status_code == 201:
+            self.vuln_canary_doc_b = res_doc_b_vuln.json()
+            self._attack_created_doc_ids.append((str(self.vuln_canary_doc_b["id"]), self.token_b))
+        else:
+            self.vuln_canary_doc_b = None
 
     async def run_control_verification(self, client: httpx.AsyncClient) -> Dict[str, Any]:
         """
@@ -344,6 +360,26 @@ class VerificationRunner:
                 "reason": f"Document unreadable (status {res.status_code}) and admin DB check failed: {exc}",
             }
 
+    async def verify_vuln_canary_integrity(self, client: httpx.AsyncClient) -> Dict[str, Any]:
+        """
+        Confirms whether the disposable vulnerable canary document was modified or deleted via flawed routes.
+        For the vulnerable layer, modification or deletion empirically demonstrates the absence of controls.
+        """
+        if not self.vuln_canary_doc_b:
+            return {"intact": True, "status": "UNKNOWN", "reason": "No vulnerable canary provisioned"}
+        res = await client.get(
+            f"/documents/{self.vuln_canary_doc_b['id']}",
+            headers={"Authorization": f"Bearer {self.token_b}"},
+        )
+        if res.status_code == 200:
+            doc = res.json()
+            if doc.get("title") != self.VULN_CANARY_TITLE:
+                return {"intact": False, "status": "TAMPERED", "reason": f"Title altered to '{doc.get('title')}'"}
+            if doc.get("content") != self.VULN_CANARY_SECRET:
+                return {"intact": False, "status": "TAMPERED", "reason": "Content altered"}
+            return {"intact": True, "status": "INTACT", "reason": "Document content and title unaltered"}
+        return {"intact": False, "status": "DELETED", "reason": f"Document deleted (status {res.status_code})"}
+
     async def run_list_leak_check(self, client: httpx.AsyncClient) -> Dict[str, Any]:
         """
         As Tenant A, calls GET /documents and checks whether any of Tenant B's
@@ -393,8 +429,20 @@ class VerificationRunner:
     async def execute_attack(self, client: httpx.AsyncClient, attack: AttackSpec) -> Dict[str, Any]:
         """
         Executes a single generated attack using Tenant A credentials against Tenant B targets.
+        Uses a dedicated disposable canary document for vulnerable layer routes so production canaries
+        are never compromised.
         """
         assert self.canary_doc_b is not None
+
+        is_vuln = (
+            attack.metadata.get("is_vulnerable_layer", False)
+            or attack.path_template.startswith("/vulnerable")
+        )
+        target_doc = (
+            self.vuln_canary_doc_b
+            if (is_vuln and self.vuln_canary_doc_b)
+            else self.canary_doc_b
+        )
 
         # Resolve path parameters dynamically
         target_path = attack.path_template
@@ -402,7 +450,7 @@ class VerificationRunner:
             if attack.path_param_type == "tenant_id":
                 target_path = target_path.replace(f"{{{attack.path_param_name}}}", str(self.tenant_id_b))
             else:
-                target_path = target_path.replace(f"{{{attack.path_param_name}}}", str(self.canary_doc_b["id"]))
+                target_path = target_path.replace(f"{{{attack.path_param_name}}}", str(target_doc["id"]))
 
         # Resolve payload templates
         payload = None
@@ -461,12 +509,15 @@ class VerificationRunner:
         data_leak_detected = False
         leak_evidence = None
 
-        if self.CANARY_SECRET_B in response_text:
+        target_secret = self.VULN_CANARY_SECRET if is_vuln else self.CANARY_SECRET_B
+        target_title = self.VULN_CANARY_TITLE if is_vuln else self.CANARY_TITLE_B
+
+        if target_secret in response_text:
             data_leak_detected = True
             leak_evidence = f"Canary secret leaked in response body."
-        elif self.CANARY_TITLE_B in response_text:
+        elif target_title in response_text:
             data_leak_detected = True
-            leak_evidence = f"Canary title '{self.CANARY_TITLE_B}' leaked in response body."
+            leak_evidence = f"Canary title '{target_title}' leaked in response body."
 
         # Outcome evaluation
         outcome = "BLOCKED"
@@ -475,20 +526,38 @@ class VerificationRunner:
         create_injection_proof: Optional[Dict[str, Any]] = None
 
         if attack.category in ("read", "update", "delete", "action"):
-            if response_status in (200, 201, 204) or data_leak_detected:
-                outcome = "LEAKED"
-                blocking_control = "none"
-            else:
-                outcome = "BLOCKED"
-                blocking_control = _detect_blocking_control(response_status, response_text, attack.category)
+            if is_vuln:
+                # Intentionally flawed endpoint: expected to leak without ownership or RLS
+                if response_status in (200, 201, 204) or data_leak_detected:
+                    outcome = "EXPECTED_LEAK"
+                    blocking_control = "none (flawed route demo)"
+                    leak_evidence = "Vulnerable demonstration endpoint permitted cross-tenant access without ownership verification or RLS."
+                else:
+                    outcome = "BLOCKED"
+                    blocking_control = _detect_blocking_control(response_status, response_text, attack.category)
 
-            if attack.category in ("update", "delete"):
-                integrity = await self.verify_tenant_b_integrity(client)
-                integrity_check = integrity
-                if integrity.get("status") == "LEAKED":
+                if attack.category in ("update", "delete"):
+                    vuln_integrity = await self.verify_vuln_canary_integrity(client)
+                    integrity_check = vuln_integrity
+                    if not vuln_integrity.get("intact", True):
+                        outcome = "EXPECTED_LEAK"
+                        blocking_control = "none (flawed route demo)"
+                        leak_evidence = f"Vulnerable route modified or deleted victim resource: {vuln_integrity['reason']}"
+            else:
+                if response_status in (200, 201, 204) or data_leak_detected:
                     outcome = "LEAKED"
                     blocking_control = "none"
-                    leak_evidence = f"Integrity violation on Tenant B resource: {integrity['reason']}"
+                else:
+                    outcome = "BLOCKED"
+                    blocking_control = _detect_blocking_control(response_status, response_text, attack.category)
+
+                if attack.category in ("update", "delete"):
+                    integrity = await self.verify_tenant_b_integrity(client)
+                    integrity_check = integrity
+                    if integrity.get("status") == "LEAKED":
+                        outcome = "LEAKED"
+                        blocking_control = "none"
+                        leak_evidence = f"Integrity violation on Tenant B resource: {integrity['reason']}"
 
         elif attack.category == "create_injection":
             if response_status == 201:
@@ -624,6 +693,7 @@ class VerificationRunner:
             total_attacks = len(attack_results)
             blocked_count = sum(1 for a in attack_results if a["outcome"] == "BLOCKED")
             leaked_count = sum(1 for a in attack_results if a["outcome"] == "LEAKED")
+            expected_leaks_count = sum(1 for a in attack_results if a["outcome"] == "EXPECTED_LEAK")
             inconclusive_count = sum(1 for a in attack_results if a["outcome"] == "INCONCLUSIVE")
             list_leak_detected = list_leak_result["leaked"]
             if list_leak_detected:
@@ -668,10 +738,12 @@ class VerificationRunner:
                     "total_attacks_run": total_attacks,
                     "blocked_attacks": blocked_count,
                     "leaked_attacks": leaked_count,
+                    "expected_leaks": expected_leaks_count,
                     "inconclusive_attacks": inconclusive_count,
                     "control_verification": control_result["outcome"],
                     "tenant_b_canary_integrity": integrity_label,
                     "list_leak_check": list_leak_result["outcome"],
+                    "vulnerable_layer_verification": "FLAWS_CONFIRMED" if expected_leaks_count > 0 else "SKIPPED",
                     "cross_tenant_leak": "yes" if cross_tenant_leak else "no",
                     "owner_access_lost": "yes" if owner_access_lost else "no",
                     "overall_verdict": overall_verdict,
@@ -702,8 +774,9 @@ class VerificationRunner:
         print(f" Generated At       : {report['generated_at_utc']}")
         print(f" Control Check      : {summary['control_verification']}")
         print(f" Total Attacks Run  : {summary['total_attacks_run']}")
-        print(f" Blocked            : {summary['blocked_attacks']}")
-        print(f" Leaked             : {summary['leaked_attacks']}")
+        print(f" Blocked (Secure)   : {summary['blocked_attacks']}")
+        print(f" Expected Leaks     : {summary.get('expected_leaks', 0)} (Vulnerable Route Contrast)")
+        print(f" Unexpected Leaks   : {summary['leaked_attacks']}")
         print(f" Inconclusive (429) : {summary['inconclusive_attacks']}")
         print(f" List-Leak Check    : {summary['list_leak_check']}")
         print(f" Canary Integrity   : {summary['tenant_b_canary_integrity']}")
@@ -715,13 +788,14 @@ class VerificationRunner:
         for a in report["attack_results"]:
             tag = {
                 "BLOCKED": "[BLOCKED]",
+                "EXPECTED_LEAK": "[EXP.LEAK]",
                 "LEAKED": "[LEAKED!]",
                 "INCONCLUSIVE": "[INCONC.]",
             }.get(a["outcome"], "[???????]")
             ctrl = a.get("blocking_control", "unknown")
             print(
-                f"  {tag:<10} {a['method']:<6} {a['target_path']:<35} "
-                f"(HTTP {a['status_code']}) blocked_by={ctrl}"
+                f"  {tag:<11} {a['method']:<6} {a['target_path']:<35} "
+                f"(HTTP {a['status_code']}) {ctrl}"
             )
             if a.get("create_injection_proof"):
                 proof = a["create_injection_proof"]

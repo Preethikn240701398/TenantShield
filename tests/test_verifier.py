@@ -185,7 +185,8 @@ async def test_06_verification_runner_executes_and_asserts_zero_leaks():
     # Each attack result must have blocking_control field
     for a in report["attack_results"]:
         assert "blocking_control" in a, f"Missing blocking_control in attack result: {a['attack_name']}"
-        assert a["outcome"] in ("BLOCKED", "LEAKED", "INCONCLUSIVE")
+        assert a["outcome"] in ("BLOCKED", "LEAKED", "INCONCLUSIVE", "EXPECTED_LEAK")
+    assert summary.get("expected_leaks", 0) >= 1
 
     # Verify JSON report file was written to results/
     results_dir = Path(__file__).resolve().parent.parent / "results"

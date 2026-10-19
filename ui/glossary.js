@@ -32,9 +32,21 @@
     },
     'Leaked': {
       name: 'Leaked',
-      meaning: 'The number of attacks where cross-tenant data or state was improperly exposed, altered, or deleted.',
-      calculation: 'Count of attack responses containing foreign tenant content, canary strings, or returning HTTP 200/201 unexpectedly.',
+      meaning: 'The number of attacks where cross-tenant data or state was improperly exposed, altered, or deleted on production hardened routes.',
+      calculation: 'Count of attack responses containing foreign tenant content, canary strings, or returning HTTP 200/201 unexpectedly on production endpoints.',
       howToRead: '0 is the required healthy score; any value above 0 indicates a tenant boundary failure.'
+    },
+    'Expected leaks': {
+      name: 'Expected leaks (demo)',
+      meaning: 'Attacks targeted against intentionally vulnerable educational demonstration endpoints (/vulnerable/*) that successfully bypassed isolation.',
+      calculation: 'Count of attacks targeting flawed demo routes where canary documents were successfully exposed, altered, or deleted.',
+      howToRead: 'Shows that flawed routes lacking tenant boundaries fail as expected, confirming verification sensitivity.'
+    },
+    'EXPECTED_LEAK': {
+      name: 'EXPECTED_LEAK',
+      meaning: 'The attack successfully accessed or manipulated victim data on an intentionally flawed demonstration route.',
+      calculation: 'Recorded when simulated attacks against /vulnerable/documents successfully retrieve or tamper with the disposable canary.',
+      howToRead: 'Confirms that the flawed demonstration endpoint is vulnerable as designed for educational contrast.'
     },
     'Inconclusive': {
       name: 'Inconclusive',

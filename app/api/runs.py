@@ -104,6 +104,7 @@ async def _monitor_verification_process(run_id: str, proc: Any) -> None:
                         "total_attacks_run": raw_sum.get("total_attacks_run", len(raw_att)),
                         "blocked_attacks": raw_sum.get("blocked_attacks", 0),
                         "leaked_attacks": raw_sum.get("leaked_attacks", 0),
+                        "expected_leaks": raw_sum.get("expected_leaks", 0),
                         "inconclusive_attacks": raw_sum.get("inconclusive_attacks", 0),
                         "tenant_b_canary_integrity": raw_sum.get("tenant_b_canary_integrity", "UNKNOWN"),
                         "list_leak_check": raw_sum.get("list_leak_check", "UNKNOWN"),
@@ -111,6 +112,7 @@ async def _monitor_verification_process(run_id: str, proc: Any) -> None:
                     }
                     for a in raw_att:
                         attacks.append({
+                            "name": a.get("name"),
                             "method": a.get("method"),
                             "target_path": a.get("target_path"),
                             "status_code": a.get("status_code"),
