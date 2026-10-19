@@ -30,13 +30,14 @@ from app.schemas.auth import AuthenticatedUser
 from app.schemas.document import DocumentResponse, DocumentUpdate
 from app.services.crypto import CryptoService
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
+from sqlalchemy.pool import NullPool
 
 logger = logging.getLogger("tenantshield.vulnerable")
 
 # Simulate standard unhardened database pool (without RLS enforcement)
 _raw_admin_url = getattr(settings, "POSTGRES_ADMIN_URL", None) or os.getenv("POSTGRES_ADMIN_URL", "")
 _vuln_db_url = _raw_admin_url.replace("postgresql+psycopg://", "postgresql+asyncpg://").replace("postgresql://", "postgresql+asyncpg://") if _raw_admin_url else settings.DATABASE_URL
-_vuln_engine = create_async_engine(_vuln_db_url, pool_pre_ping=True)
+_vuln_engine = create_async_engine(_vuln_db_url, poolclass=NullPool)
 AsyncFlawedSessionLocal = async_sessionmaker(bind=_vuln_engine, autocommit=False, autoflush=False, expire_on_commit=False)
 
 router = APIRouter(prefix="/vulnerable/documents", tags=["Vulnerable Demo Endpoints"])
