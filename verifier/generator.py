@@ -51,6 +51,9 @@ class AttackGenerator:
         """
         discovered = []
         for path_pattern, path_item in self.paths.items():
+            # Skip intentionally vulnerable demo routes used strictly for manual comparative demonstration
+            if path_pattern.startswith("/vulnerable"):
+                continue
             matches = self.ID_PARAM_PATTERN.findall(path_pattern)
             if matches:
                 discovered.append({
@@ -70,6 +73,9 @@ class AttackGenerator:
         attacks: List[AttackSpec] = []
 
         for path_pattern, path_item in self.paths.items():
+            # Skip intentionally vulnerable demo routes used strictly for manual comparative demonstration
+            if path_pattern.startswith("/vulnerable"):
+                continue
             matches = self.ID_PARAM_PATTERN.findall(path_pattern)
 
             # 1. Path-parameterized endpoints (e.g. /documents/{document_id}, /admin/keys/{tenant_id}/...)

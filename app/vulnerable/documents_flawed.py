@@ -39,7 +39,7 @@ _vuln_db_url = _raw_admin_url.replace("postgresql+psycopg://", "postgresql+async
 _vuln_engine = create_async_engine(_vuln_db_url, pool_pre_ping=True)
 AsyncFlawedSessionLocal = async_sessionmaker(bind=_vuln_engine, autocommit=False, autoflush=False, expire_on_commit=False)
 
-router = APIRouter(prefix="/vulnerable/documents", tags=["Vulnerable Demo Endpoints"])
+router = APIRouter(prefix="/vulnerable/documents", tags=["Vulnerable Demo Endpoints"], include_in_schema=False)
 
 
 @router.get(
