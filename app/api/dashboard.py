@@ -179,6 +179,7 @@ async def get_verification_report(
     # Extract exact metrics as stored
     summary = {
         "generated_at_utc": raw_data.get("generated_at_utc"),
+        "mode": raw_summary.get("mode", "all"),
         "total_attacks_run": raw_summary.get("total_attacks_run", len(raw_attacks)),
         "blocked_attacks": raw_summary.get("blocked_attacks", 0),
         "leaked_attacks": raw_summary.get("leaked_attacks", 0),

@@ -64,9 +64,10 @@ class AttackGenerator:
                 })
         return discovered
 
-    def generate_attacks(self) -> List[AttackSpec]:
+    def generate_attacks(self, filter_mode: str = "all") -> List[AttackSpec]:
         """
-        Generates full list of dynamic cross-tenant attack specifications.
+        Generates dynamic cross-tenant attack specifications.
+        Supports filter_mode: 'all', 'vulnerable_only', or 'secure_only'.
         """
         attacks: List[AttackSpec] = []
 
@@ -202,4 +203,14 @@ class AttackGenerator:
                             )
                         )
 
+        if filter_mode == "vulnerable_only":
+            return [
+                a for a in attacks
+                if a.metadata.get("is_vulnerable_layer") or a.path_template.startswith("/vulnerable")
+            ]
+        elif filter_mode == "secure_only":
+            return [
+                a for a in attacks
+                if not (a.metadata.get("is_vulnerable_layer") or a.path_template.startswith("/vulnerable"))
+            ]
         return attacks

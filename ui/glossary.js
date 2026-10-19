@@ -18,6 +18,18 @@
       calculation: 'Computed in verifier/runner.py: set to PASS if blocked count equals total attacks, leaks equal 0, canary integrity is INTACT, and list-leak check is PASSED; otherwise FAIL.',
       howToRead: 'PASS indicates all isolation defenses succeeded; FAIL indicates at least one cross-tenant boundary breach.'
     },
+    'Scope': {
+      name: 'Scope',
+      meaning: 'The targeted set of endpoints evaluated during the verification run.',
+      calculation: 'Selected via CLI flag --mode or the dashboard dropdown: "All Endpoints", "Vulnerable Layer Alone", or "Secure Layer Only".',
+      howToRead: 'Shows whether the run evaluated the full hardened+flawed contrast suite, only the intentionally flawed demo routes, or exclusively the hardened production routes.'
+    },
+    'VULNERABLE_LAYER_CONFIRMED': {
+      name: 'VULNERABLE_LAYER_CONFIRMED',
+      meaning: 'All simulated cross-tenant attacks against the flawed demo layer successfully bypassed isolation as expected.',
+      calculation: 'Computed when running under vulnerable_only mode: zero unexpected leaks on production, and all flawed routes produced expected leaks.',
+      howToRead: 'Confirms that the intentionally vulnerable layer correctly demonstrates real cross-tenant security vulnerabilities.'
+    },
     'Attacks run': {
       name: 'Attacks run',
       meaning: 'The total count of synthetic cross-tenant access attempts dispatched against the API during a verification run.',

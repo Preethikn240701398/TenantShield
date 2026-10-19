@@ -413,7 +413,13 @@
         <section class="dashboard-section" id="section-verification">
           <div class="section-header">
             <h2>Latest verification run</h2>
-            <div style="display: flex; gap: 8px; align-items: center;">
+            <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+              <label for="verif-mode-select" class="text-small" style="font-weight: 500; color: var(--text-muted); margin-right: -2px;">Scope:</label>
+              <select id="verif-mode-select" class="text-small" style="height: 32px; padding: 2px 8px; font-weight: 500; border-radius: var(--radius); border: 1px solid var(--border-color, #d0d7de); background: var(--bg-surface, #ffffff); color: var(--text-main, #24292f);">
+                <option value="all">All Endpoints (Hardened + Flawed Contrast)</option>
+                <option value="vulnerable_only">Vulnerable Layer Alone (Flawed Demo)</option>
+                <option value="secure_only">Secure Layer Only (Hardened)</option>
+              </select>
               <button type="button" class="btn btn-sm btn-primary" id="btn-run-verification">Run verification now</button>
               <button type="button" class="how-it-works-toggle" data-target="how-verif">How this section works</button>
               <span class="text-small" id="verif-run-time"></span>
@@ -423,7 +429,7 @@
           <div class="how-it-works-panel" id="how-verif">
             <div class="how-it-works-line"><span class="how-it-works-label">Purpose:</span>Verifies cross-tenant isolation and data segregation under normal operating mode by running simulated attacks.</div>
             <div class="how-it-works-line"><span class="how-it-works-label">Source:</span>Newest baseline results/verification_attack_report_*.json file.</div>
-            <div class="how-it-works-line"><span class="how-it-works-label">How produced:</span>Executed via python -m verifier.runner running 11 attacks, checking canary document integrity in the lab DB, and validating zero list leaks.</div>
+            <div class="how-it-works-line"><span class="how-it-works-label">How produced:</span>Executed via python -m verifier.runner running simulated attacks across selected scope, checking canary document integrity in the lab DB, and validating zero list leaks.</div>
           </div>
           <hr>
 
@@ -433,6 +439,7 @@
 
           <div id="verif-content">
             <div class="section-summary-row">
+              <div class="summary-stat"><span data-glossary="Scope">Scope</span>: <strong id="verif-scope-display">All</strong></div>
               <div class="summary-stat"><span data-glossary="Verdict">Verdict</span>: <strong id="verif-verdict"></strong></div>
               <div class="summary-stat"><span data-glossary="Attacks run">Attacks run</span>: <strong id="verif-total" class="tabular-nums"></strong></div>
               <div class="summary-stat"><span data-glossary="Blocked">Blocked</span>: <strong id="verif-blocked" class="tabular-nums"></strong></div>

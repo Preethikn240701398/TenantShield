@@ -365,8 +365,12 @@ Runs full automated verification against `tenantshield_db`. Requires a running s
 # Terminal 1 - start the server
 uvicorn app.main:app --host 127.0.0.1 --port 8000
 
-# Terminal 2 - run the attack verifier
+# Terminal 2 - run the attack verifier (default: all endpoints)
 .venv\Scripts\python.exe scripts\run_verifier.py
+
+# Optional: target specific scope modes
+.venv\Scripts\python.exe scripts\run_verifier.py --mode vulnerable_only  # Flawed routes demo alone
+.venv\Scripts\python.exe scripts\run_verifier.py --mode secure_only      # Hardened production routes only
 ```
 
 Results saved to: `results/verification_attack_report_<timestamp>.json`

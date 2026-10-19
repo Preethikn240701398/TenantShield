@@ -247,3 +247,44 @@ def test_08_verification_section_prefers_baseline_report_over_newer_unknown_repo
     data_empty = resp_empty.json()
     assert data_empty["status"] == "empty"
     assert "python scripts/run_verifier.py" in data_empty["message"]
+
+
+def test_09_run_verification_supports_mode_parameter(client: TestClient, admin_auth: dict, monkeypatch):
+    """
+    Validates that /admin/dashboard/run-verification accepts valid modes:
+    1. ?mode=vulnerable_only passes cleanly to background process.
+    2. ?mode=invalid_mode returns 422 Unprocessable Entity.
+    """
+    from unittest.mock import patch, MagicMock, AsyncMock
+    from app.api import runs
+
+    monkeypatch.setattr(settings, "APP_ENV", "development")
+
+    # Reset module state
+    runs.RUNS_REGISTRY.clear()
+    runs._active_process = None
+    runs._active_run_id = None
+    runs._last_start_timestamp = 0.0
+
+    mock_proc = MagicMock()
+    mock_proc.returncode = None
+    mock_proc.wait = AsyncMock(return_value=0)
+
+    # 1. Invalid mode is rejected
+    res_bad = client.post("/admin/dashboard/run-verification?mode=invalid_mode", headers=admin_auth["headers"])
+    assert res_bad.status_code == 422
+
+    # 2. Valid mode is accepted and command includes --mode
+    with patch("asyncio.create_subprocess_exec", return_value=mock_proc) as mock_exec:
+        res_ok = client.post("/admin/dashboard/run-verification?mode=vulnerable_only", headers=admin_auth["headers"])
+        assert res_ok.status_code == 200
+        assert res_ok.json()["state"] == "running"
+        assert mock_exec.called
+        call_args = mock_exec.call_args[0]
+        assert "--mode" in call_args
+        mode_idx = call_args.index("--mode")
+        assert call_args[mode_idx + 1] == "vulnerable_only"
+
+    runs._active_process = None
+    runs._active_run_id = None
+

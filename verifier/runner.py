@@ -166,8 +166,9 @@ class VerificationRunner:
     VULN_CANARY_SECRET = "VULNERABLE_CANARY_SECRET_DISPOSABLE_CONTRAST"
     VULN_CANARY_TITLE = "Beta Disposable Vulnerable Target"
 
-    def __init__(self, base_url: str = "http://test"):
+    def __init__(self, base_url: str = "http://test", mode: str = "all"):
         self.base_url = base_url
+        self.mode = mode
         self.token_a: Optional[str] = None
         self.tenant_id_a: Optional[str] = None
         self.token_b: Optional[str] = None
@@ -665,7 +666,7 @@ class VerificationRunner:
             # 3. Dynamic Attack Discovery from OpenAPI
             generator = AttackGenerator.from_app(app)
             discovered_endpoints = generator.discover_resource_endpoints()
-            attacks = generator.generate_attacks()
+            attacks = generator.generate_attacks(filter_mode=self.mode)
 
             # 4. Execute all generated attacks
             attack_results = []
@@ -708,11 +709,18 @@ class VerificationRunner:
                 or any(a.get("owner_access_lost", False) for a in attack_results)
             )
 
-            overall_verdict = (
-                "NO_LEAK_DETECTED"
-                if not cross_tenant_leak
-                else "LEAK_DETECTED"
-            )
+            if self.mode == "vulnerable_only":
+                overall_verdict = (
+                    "VULNERABLE_LAYER_CONFIRMED"
+                    if expected_leaks_count > 0 and leaked_count == 0
+                    else ("LEAK_DETECTED" if leaked_count > 0 else "NO_LEAK_DETECTED")
+                )
+            else:
+                overall_verdict = (
+                    "NO_LEAK_DETECTED"
+                    if not cross_tenant_leak
+                    else "LEAK_DETECTED"
+                )
 
             integrity_label = "INTACT"
             if final_integrity.get("status") == "OWNER_ACCESS_LOST":
@@ -735,6 +743,7 @@ class VerificationRunner:
                 "discovered_endpoints": discovered_endpoints,
                 "summary": {
                     "run_type": "BASELINE",
+                    "mode": self.mode,
                     "total_attacks_run": total_attacks,
                     "blocked_attacks": blocked_count,
                     "leaked_attacks": leaked_count,
@@ -772,6 +781,7 @@ class VerificationRunner:
         print(" TENANTSHIELD VERIFICATION PACKAGE -- ATTACK REPORT SUMMARY")
         print("=" * 72)
         print(f" Generated At       : {report['generated_at_utc']}")
+        print(f" Scope Mode         : {summary.get('mode', 'all')}")
         print(f" Control Check      : {summary['control_verification']}")
         print(f" Total Attacks Run  : {summary['total_attacks_run']}")
         print(f" Blocked (Secure)   : {summary['blocked_attacks']}")

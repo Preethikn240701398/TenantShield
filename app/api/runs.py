@@ -27,7 +27,7 @@ from typing import Any, Dict, Optional
 import uuid
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.api.deps import get_current_user
 from app.api.dashboard import (
@@ -101,6 +101,7 @@ async def _monitor_verification_process(run_id: str, proc: Any) -> None:
 
                     summary = {
                         "generated_at_utc": raw.get("generated_at_utc"),
+                        "mode": raw_sum.get("mode", "all"),
                         "total_attacks_run": raw_sum.get("total_attacks_run", len(raw_att)),
                         "blocked_attacks": raw_sum.get("blocked_attacks", 0),
                         "leaked_attacks": raw_sum.get("leaked_attacks", 0),
@@ -153,12 +154,14 @@ async def _monitor_verification_process(run_id: str, proc: Any) -> None:
 
 @router.post("/run-verification", summary="Trigger Normal Verification Run")
 async def start_verification_run(
+    mode: str = Query("all", pattern="^(all|secure_only|vulnerable_only)$"),
     current_user: AuthenticatedUser = Depends(get_current_user),
 ) -> Dict[str, Any]:
     """
     Starts existing normal-mode verification as a separate background process.
     Refuses if APP_ENV is lab, if another run is active (409), or if requested
     within 10 seconds of previous start (429).
+    Supports scope mode: 'all', 'vulnerable_only', or 'secure_only'.
     """
     global _active_process, _active_run_id, _last_start_timestamp
 
@@ -190,9 +193,9 @@ async def start_verification_run(
         run_id = str(uuid.uuid4())
         start_iso = datetime.now(timezone.utc).isoformat()
 
-        # Command: fixed path to scripts/run_verifier.py, no client arguments
+        # Command: fixed path to scripts/run_verifier.py with scope mode
         script_path = str(WORKSPACE_ROOT / "scripts" / "run_verifier.py")
-        cmd = [sys.executable, script_path]
+        cmd = [sys.executable, script_path, "--mode", mode]
 
         try:
             proc = await asyncio.create_subprocess_exec(
@@ -224,6 +227,7 @@ async def start_verification_run(
 
         RUNS_REGISTRY[run_id] = {
             "run_id": run_id,
+            "mode": mode,
             "state": "running",
             "start_time": start_iso,
             "finish_time": None,

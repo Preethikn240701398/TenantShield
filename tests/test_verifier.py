@@ -418,3 +418,36 @@ def test_10_admin_confirmation_refused_outside_lab_env():
     finally:
         settings.APP_ENV = orig_env
         settings.ENVIRONMENT = orig_environment
+
+
+@pytest.mark.asyncio
+async def test_11_verification_runner_modes():
+    """
+    Validates that VerificationRunner respects scope mode:
+    1. 'vulnerable_only': Executes solely against flawed routes, yielding VULNERABLE_LAYER_CONFIRMED.
+    2. 'secure_only': Executes solely against hardened production routes, yielding NO_LEAK_DETECTED with 0 expected leaks.
+    """
+    from verifier.runner import VerificationRunner
+
+    # 1. Test vulnerable_only mode
+    vuln_runner = VerificationRunner(mode="vulnerable_only")
+    vuln_report = await vuln_runner.run_verification()
+    vuln_sum = vuln_report["summary"]
+    assert vuln_sum["mode"] == "vulnerable_only"
+    assert vuln_sum["total_attacks_run"] == 3
+    assert vuln_sum["expected_leaks"] == 3
+    assert vuln_sum["blocked_attacks"] == 0
+    assert vuln_sum["leaked_attacks"] == 0
+    assert vuln_sum["overall_verdict"] == "VULNERABLE_LAYER_CONFIRMED"
+
+    # 2. Test secure_only mode
+    sec_runner = VerificationRunner(mode="secure_only")
+    sec_report = await sec_runner.run_verification()
+    sec_sum = sec_report["summary"]
+    assert sec_sum["mode"] == "secure_only"
+    assert sec_sum["total_attacks_run"] == 21
+    assert sec_sum["expected_leaks"] == 0
+    assert sec_sum["blocked_attacks"] == 21
+    assert sec_sum["leaked_attacks"] == 0
+    assert sec_sum["overall_verdict"] == "NO_LEAK_DETECTED"
+

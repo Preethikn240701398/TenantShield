@@ -328,7 +328,7 @@
     if (s === 'LEAKED' || s === 'COMPROMISED' || s === 'DESTROYED' || s === 'LEAK_DETECTED' || s === 'MISSED') {
       return 'dot-leaked';
     }
-    if (s === 'EXPECTED_LEAK' || s === 'EXPECTED LEAK' || s === 'FLAWED_DEMO') {
+    if (s === 'EXPECTED_LEAK' || s === 'EXPECTED LEAK' || s === 'FLAWED_DEMO' || s === 'VULNERABLE_LAYER_CONFIRMED') {
       return 'dot-expected-leak';
     }
     if (s === 'RETIRED' || s === 'INCONCLUSIVE' || s === 'MASKED') {
@@ -1219,7 +1219,9 @@
       }, 1000);
 
       try {
-        var startRes = await apiFetch('/admin/dashboard/run-verification', {
+        var modeSelect = document.getElementById('verif-mode-select');
+        var selectedMode = modeSelect ? modeSelect.value : 'all';
+        var startRes = await apiFetch('/admin/dashboard/run-verification?mode=' + encodeURIComponent(selectedMode), {
           method: 'POST'
         });
         if (!startRes.ok) {
@@ -1660,6 +1662,18 @@
         if (kpiVerdictSub) {
           kpiVerdictSub.textContent = (data.summary.blocked_attacks || 0) + ' blocked / ' + (data.summary.total_attacks_run || 0) + ' total attacks';
         }
+      }
+
+      // Scope mode display
+      var scopeEl = document.getElementById('verif-scope-display');
+      if (scopeEl) {
+        var sm = data.summary.mode || 'all';
+        var scopeLabel = sm === 'vulnerable_only' ? 'Vulnerable Layer Alone' : (sm === 'secure_only' ? 'Secure Layer Only' : 'All Endpoints');
+        scopeEl.textContent = scopeLabel;
+      }
+      var modeSelectEl = document.getElementById('verif-mode-select');
+      if (modeSelectEl && data.summary.mode) {
+        modeSelectEl.value = data.summary.mode;
       }
 
       document.getElementById('verif-total').textContent = data.summary.total_attacks_run;
