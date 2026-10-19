@@ -1,44 +1,46 @@
 # TenantShield
 
 > **Secure Multi-Tenant SaaS Workspace API**  
-> Built with **FastAPI**, **PostgreSQL 16 (native Windows)**, **Row-Level Security (RLS)**, **AES-256-GCM Envelope Encryption & Crypto-Shredding**, **Redis/Memurai Tenant-Aware Rate Limiting**, and a **lightweight web dashboard**.  
+> Built with **FastAPI**, **PostgreSQL 16 (native Windows)**, **Row-Level Security (RLS)**, **AES-256-GCM Envelope Encryption & Crypto-Shredding**, **Redis/Memurai Tenant-Aware Rate Limiting**, and an **interactive single-page web dashboard**.  
 > **Mandatory principle: Do not invent results or claim the system is secure.**
 
 ---
 
 ## 1. What TenantShield Is
 
-TenantShield is a multi-tenant document storage API that lets multiple customers (tenants) share the same server and database without being able to see each other's data. Every document belongs to exactly one tenant. When a user logs in, the server issues a JWT token that records which tenant they belong to. Every subsequent request uses that token — clients never send a tenant ID directly; the server derives it from the verified token.
+TenantShield is a multi-tenant document storage API that lets multiple customers (tenants) share the same server and database without being able to see each other's data. Every document belongs to exactly one tenant. When a user logs in, the server issues a JWT token that records which tenant they belong to. Every subsequent request uses that token - clients never send a tenant ID directly; the server derives it from the verified token.
 
-The project is primarily an **engineering experiment** used to study, measure, and attack the isolation properties of a multi-tenant system. It comes with automated attack suites, mutation testing, a layer-kill matrix, and noisy-neighbour load experiments — all of which produce machine-readable evidence in `results/`.
+The project is an **engineering experiment and interactive demonstration platform** used to study, measure, and attack the isolation properties of a multi-tenant system. It features automated attack suites, mutation testing, a layer-kill matrix, noisy-neighbour load experiments, in-browser live verification, key lifecycle crypto-shredding demos, single-attack inspectors, and intentionally flawed routes for side-by-side comparison - all backed by machine-readable evidence in `results/`.
 
 ---
 
 ## 2. Architecture Overview
 
-The system implements isolation at multiple independent layers, so that a bug in any single layer does not immediately cause a data leak.
+The system implements isolation at multiple independent layers, so that a bug in any single layer does not cause a data leak (defense-in-depth).
 
-| Layer | Mechanism | Key file |
-|-------|-----------|----------|
-| **Token & Ownership (A)** | JWT verified on every request; `check_document_ownership` rejects requests where the token's `tenant_id` does not match the document's `tenant_id` | `app/services/document_ownership.py` |
-| **Query Filter (C)** | Every SQL query carries `WHERE tenant_id = :tenant_id` parameterised to the token's `tenant_id` | `app/api/documents.py` |
-| **Row-Level Security (B)** | PostgreSQL 16 RLS policy `tenant_isolation_policy` on the `documents` table filters rows based on `app.current_tenant_id`, which is set `LOCAL` (transaction-scoped) by the restricted database role `tenantshield_app` (NOSUPERUSER, NOBYPASSRLS) | `scripts/init_db.sql` |
+| Layer / Component | Mechanism | Key file |
+|-------------------|-----------|----------|
+| **Token & Ownership (Layer A)** | JWT verified on every request; `check_document_ownership` rejects requests where the token's `tenant_id` does not match the document's `tenant_id` | `app/services/document_ownership.py` |
+| **Query Filter (Layer C)** | Every SQL query carries `WHERE tenant_id = :tenant_id` parameterised to the token's `tenant_id` | `app/api/documents.py` |
+| **Row-Level Security (Layer B)** | PostgreSQL 16 RLS policy `tenant_isolation_policy` on the `documents` table filters rows based on `app.current_tenant_id`, set `LOCAL` (transaction-scoped) by the restricted database role `tenantshield_app` (NOSUPERUSER, NOBYPASSRLS) | `scripts/init_db.sql` |
 | **Envelope Encryption** | Document content is encrypted with per-tenant AES-256-GCM Data Encryption Keys (DEKs). The DEK is wrapped by a master key (`TENANTSHIELD_MASTER_KEY`). AAD binds `tenant_id` and `document_id` so cross-tenant ciphertext replay fails authentication | `app/services/crypto.py` |
 | **Rate Limiter** | Fixed-window Redis rate limiter keyed to verified JWT tenant context; returns HTTP 429 with `Retry-After` header; tenant A quota is independent of tenant B quota | `app/services/rate_limiter.py` |
-| **Verifier** | Automated HTTP attack suite that runs cross-tenant read, write, update, delete, and inject attacks against a live server | `verifier/` |
-| **Dashboard** | Platform-admin-only web UI that surfaces the latest verifier results, layer-kill matrix, mutation test scores, and noisy-neighbour data from `results/` | `app/api/dashboard.py`, `ui/` |
+| **Interactive Demos & Verification API** | Endpoints for live verification polling, key lifecycle (rotation, crypto-shredding), paced multi-tenant traffic simulation, single-attack execution, live benchmark runner, and real-time configuration audit checks | `app/api/runs.py`, `app/api/demo.py`, `app/api/traffic_demo.py`, `app/api/attack_demo.py`, `app/api/benchmark_demo.py`, `app/api/config_check.py` |
+| **Flawed Route Comparison** | Deliberately vulnerable routes omitting Layer A, Layer B context, and Layer C query filters for side-by-side demonstration of cross-tenant data leaks | `app/vulnerable/documents_flawed.py` |
+| **Verifier Suite** | Automated HTTP attack suite that executes cross-tenant read, write, update, delete, and inject attacks against a live server | `verifier/` |
+| **Dashboard & Glossary** | Platform-admin and tenant web UI surfacing live verifier results, layer-kill matrix, mutation test scores, noisy-neighbour telemetry, key lifecycle state, and interactive in-context glossary tooltips | `app/api/dashboard.py`, `ui/app.js`, `ui/glossary.js` |
 
-The tenant lifecycle for a document request:
+The tenant lifecycle for a secure document request:
 
 ```
 Client --[JWT]--> FastAPI
     --> auth.get_current_user()          # verifies token, extracts tenant_id
     --> deps.check_tenant_rate_limit()   # Redis quota check
-    --> check_document_ownership()       # Layer A
-    --> SQL + WHERE tenant_id = :tid     # Layer C
+    --> check_document_ownership()       # Layer A (ownership check)
+    --> SQL + WHERE tenant_id = :tid     # Layer C (query filter)
     --> DB under tenant_session context  # SET LOCAL app.current_tenant_id
-    --> RLS filters in PostgreSQL        # Layer B
-    --> CryptoService.decrypt()          # Envelope decryption + AAD check
+    --> RLS filters in PostgreSQL        # Layer B (row-level security)
+    --> CryptoService.decrypt()          # Envelope decryption + AAD validation
 ```
 
 ---
@@ -52,45 +54,59 @@ TenantShield/
 +-- requirements.txt              # Python dependencies
 +-- pytest.ini                    # Pytest configuration
 +-- .env.example                  # Environment template
-+-- docker-compose.yml            # Optional (NOT tested – see comment in file)
-¦
++-- docker-compose.yml            # Optional (NOT tested - see comment in file)
+|
 +-- app/
-¦   +-- main.py                   # FastAPI app entrypoint
-¦   +-- core/
-¦   ¦   +-- config.py             # Settings and startup validation
-¦   ¦   +-- database.py           # Async DB engines, tenant_session context
-¦   +-- api/
-¦   ¦   +-- auth.py               # Login / token endpoints
-¦   ¦   +-- documents.py          # Multi-tenant document CRUD
-¦   ¦   +-- admin.py              # Platform admin: metrics, DEK rotation, shred
-¦   ¦   +-- dashboard.py          # Admin dashboard data endpoints
-¦   ¦   +-- routes.py             # / and /health
-¦   +-- models/                   # SQLAlchemy ORM models
-¦   +-- schemas/                  # Pydantic schemas
-¦   +-- services/
-¦       +-- auth.py               # Argon2id hashing, PyJWT
-¦       +-- crypto.py             # AES-256-GCM envelope encryption
-¦       +-- rate_limiter.py       # Redis fixed-window rate limiter
-¦       +-- metrics.py            # Per-tenant Redis telemetry
-¦       +-- document_ownership.py # Layer A ownership check
-¦
+|   +-- main.py                   # FastAPI app entrypoint
+|   +-- core/
+|   |   +-- config.py             # Settings and startup validation
+|   |   +-- database.py           # Async DB engines, tenant_session context
+|   +-- api/
+|   |   +-- auth.py               # Login / token endpoints
+|   |   +-- documents.py          # Multi-tenant document CRUD (secure)
+|   |   +-- admin.py              # Platform admin: metrics, DEK rotation, shred
+|   |   +-- dashboard.py          # Admin dashboard data endpoints
+|   |   +-- runs.py               # Live verification runner & streaming endpoints
+|   |   +-- demo.py               # Key lifecycle demo (seed, rotate, shred, read)
+|   |   +-- traffic_demo.py       # Paced test traffic simulation endpoints
+|   |   +-- attack_demo.py        # Single attack demo & inspection endpoints
+|   |   +-- benchmark_demo.py     # Live benchmark runner endpoints
+|   |   +-- config_check.py       # Live security & database audit check endpoint
+|   |   +-- routes.py             # / and /health
+|   +-- vulnerable/
+|   |   +-- documents_flawed.py   # Flawed route demo (omits security layers)
+|   +-- models/                   # SQLAlchemy ORM models
+|   +-- schemas/                  # Pydantic schemas
+|   +-- services/
+|       +-- auth.py               # Argon2id hashing, PyJWT
+|       +-- crypto.py             # AES-256-GCM envelope encryption
+|       +-- rate_limiter.py       # Redis fixed-window rate limiter
+|       +-- metrics.py            # Per-tenant Redis telemetry
+|       +-- document_ownership.py # Layer A ownership check
+|
 +-- verifier/                     # Cross-tenant attack verification suite
 +-- loadtests/                    # Noisy-neighbour experiment orchestrator
 +-- scripts/
-¦   +-- init_db.sql               # Schema, RLS, role setup
-¦   +-- init_db.py                # Schema initialiser runner
-¦   +-- seed_tenants.py           # Seeds Acme, Beta, Admin users
-¦   +-- migrate_level5.py         # Encryption migration + DEK provisioning
-¦   +-- setup_lab_db.ps1          # Set up isolated tenantshield_lab DB
-¦   +-- run_matrix.ps1            # Layer-Kill Matrix runner
-¦   +-- run_mutation.ps1          # Mutation testing runner
-¦   +-- run_verifier.py           # Verifier runner
-¦
+|   +-- init_db.sql               # Schema, RLS, role setup
+|   +-- init_db.py                # Schema initialiser runner
+|   +-- seed_tenants.py           # Seeds Acme, Beta, Admin users
+|   +-- seed_demo_tenant.py       # Seeds Demo Co tenant for key lifecycle demos
+|   +-- migrate_level5.py         # Encryption migration + DEK provisioning
+|   +-- setup_lab_db.ps1          # Set up isolated tenantshield_lab DB
+|   +-- run_matrix.ps1            # Layer-Kill Matrix runner
+|   +-- run_mutation.ps1          # Mutation testing runner
+|   +-- run_verifier.py           # Verifier runner
+|   +-- single_attack.py          # Standalone CLI single-attack execution script
+|   +-- send_test_traffic.py      # Standalone CLI paced traffic generator
+|   +-- live_benchmark.py         # Standalone CLI live benchmark runner
+|
 +-- ui/
-¦   +-- index.html                # Single-page web UI
-¦   +-- app.js                    # Frontend script
-¦
-+-- tests/                        # Automated test suite (87 tests)
+|   +-- index.html                # Single-page web UI
+|   +-- app.js                    # Frontend script with interactive panels
+|   +-- glossary.js               # Interactive glossary definitions & tooltips
+|   +-- style.css                 # Dashboard styles and animations
+|
++-- tests/                        # Automated test suite (176 tests across 16 files)
 +-- results/                      # Timestamped experiment evidence files
 ```
 
@@ -111,7 +127,7 @@ These experiments ran on native Windows PostgreSQL 16 and Memurai Developer on a
 
 ## 5. PostgreSQL 16 Setup (One-Time)
 
-Run as the PostgreSQL administrative user (`postgres`). Run these commands once.
+Run as the PostgreSQL administrative user (`postgres`). Run these commands once:
 
 ```powershell
 # 1. Verify PostgreSQL is running (native Windows service)
@@ -134,14 +150,18 @@ psql -U postgres -d tenantshield_db -c "ALTER ROLE tenantshield_app WITH PASSWOR
 
 # 7. Seed development tenants, users, and sample documents
 .venv\Scripts\python.exe scripts\seed_tenants.py
+
+# 8. (Optional) Seed dedicated demo tenant "Demo Co" for key lifecycle & attack demos
+.venv\Scripts\python.exe scripts\seed_demo_tenant.py
 ```
 
 **Seeded credentials (development only):**
 
-| Role | Email | Password |
-|------|-------|----------|
+| Role / Tenant | Email | Password |
+|---------------|-------|----------|
 | Tenant A (Acme) | `acme_user@acme.test` | `AcmeSecretPassword123!` |
 | Tenant B (Beta) | `beta_user@beta.test` | `BetaSecretPassword123!` |
+| Demo Co (Demo Tenant) | `demo_user@democo.test` | `DemoCompanySecurePass123!` |
 | Platform Admin | `admin@tenantshield.test` | `PlatformAdminPassword123!` |
 
 ---
@@ -184,7 +204,7 @@ POSTGRES_ADMIN_URL=postgresql+psycopg://postgres:your_admin_password@localhost:5
 # Redis / Memurai
 REDIS_URL=redis://127.0.0.1:6379/0
 
-# JWT secret — generate with: python -c "import secrets; print(secrets.token_hex(32))"
+# JWT secret - generate with: python -c "import secrets; print(secrets.token_hex(32))"
 SECRET_KEY=your_64_character_hex_secret_key
 
 # Master Key for envelope encryption (64 hex characters = 256-bit AES key)
@@ -192,7 +212,7 @@ SECRET_KEY=your_64_character_hex_secret_key
 TENANTSHIELD_MASTER_KEY=your_64_character_hex_master_key
 ```
 
-> **Note:** `SECRET_KEY` and `POSTGRES_APP_PASSWORD` are intentionally blank in `.env` — they must be filled in with values you generate. The application will refuse to start if these are left at placeholder defaults.
+> **Note:** `SECRET_KEY` and `POSTGRES_APP_PASSWORD` are intentionally blank in `.env` - they must be filled in with values you generate. The application will refuse to start if these are left at placeholder defaults.
 
 ---
 
@@ -220,41 +240,69 @@ uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 | `http://127.0.0.1:8000/` | API root metadata |
 | `http://127.0.0.1:8000/health` | Health check |
 | `http://127.0.0.1:8000/docs` | Interactive Swagger / OpenAPI UI |
-| `http://127.0.0.1:8000/ui` | Web dashboard (login page) |
+| `http://127.0.0.1:8000/ui` | Interactive Web Dashboard (workspace, admin, demos, glossary) |
+| `http://127.0.0.1:8000/admin/config/check` | Real-time configuration & security audit endpoint |
+| `http://127.0.0.1:8000/vulnerable/documents` | Flawed route endpoint (demonstrates raw vulnerability for comparison) |
 
 ---
 
 ## 10. Opening the Dashboard
 
 1. Start the server (see section 9).
-2. Navigate to `http://127.0.0.1:8000/ui` in a browser.
-3. Log in:
-   - As a **tenant user** (`acme_user@acme.test` or `beta_user@beta.test`) to reach the tenant document workspace (list, create, view, edit, delete documents).
-   - As **platform admin** (`admin@tenantshield.test`) to reach the admin dashboard, which shows the latest verifier results, layer-kill matrix, mutation scores, noisy-neighbour data, and tenant encryption key status — all read from the newest files in `results/`.
+2. Open `http://127.0.0.1:8000/ui` in a web browser.
+3. Choose your login role:
+   - **Tenant User** (`acme_user@acme.test`, `beta_user@beta.test`, or `demo_user@democo.test`):
+     - View, create, edit, and delete tenant-isolated documents.
+     - Observe transparent encryption/decryption in real time.
+   - **Platform Admin** (`admin@tenantshield.test`):
+     - **Live Configuration Audit**: Instant diagnostic check of PostgreSQL connectivity, table RLS status, restricted user role privileges (`NOSUPERUSER, NOBYPASSRLS`), Redis status, and Master Key validity.
+     - **Run Verification Now**: One-click in-browser execution of the verification suite with real-time progress polling and live log streaming.
+     - **Key Lifecycle Demo**: Provision demo tenant "Demo Co", rotate active DEK versions, test decryption of older documents, crypto-shred the key, and witness immediate cryptographic denial.
+     - **Try One Attack by Hand**: Select any attacker/victim pair and attack action (`read`, `update`, `delete`, `create-into-victim`) targeting either the `secure` route or the `vulnerable` route. Inspect the raw HTTP response code and the exact defense layer that blocked the attempt.
+     - **Send Test Traffic & Dynamic Benchmark**: Launch paced simulated multi-tenant traffic and benchmark workloads, observing real-time request counts, error rates, and latency metrics.
+     - **Results Visualisation**: Displays the latest timestamped verifier runs, layer-kill matrix, mutation testing scores, and noisy-neighbour latency charts from `results/`.
+     - **Interactive Glossary**: Contextual tooltips and explanation cards for Layer A, Layer B, Layer C, RLS, DEKs, AAD, and Crypto-shredding.
 
 ---
 
 ## 11. Running the Tests
 
+TenantShield includes 176 automated tests across 16 test files covering unit behavior, cryptographic envelope security, multi-tenant isolation, demo workflows, and verification tooling.
+
 ```powershell
-# Run the full automated test suite from the project root
+# Run the full automated test suite
 pytest -v
 ```
 
-The test suite uses `fakeredis` for in-memory Redis — no live Redis service or database seeding is required.
+The core unit and API tests use in-memory mocks (`fakeredis` and simulated contexts) and do not require live Redis or database seeding:
 
-Test breakdown (87 tests):
+```powershell
+# Run fast in-memory unit and endpoint tests:
+pytest -v tests/test_auth.py tests/test_crypto_envelope.py tests/test_dashboard.py tests/test_runs.py tests/test_config_check.py tests/test_attack_demo.py tests/test_traffic_demo.py tests/test_demo.py tests/test_health.py
+```
 
-| File | Tests |
-|------|-------|
-| `tests/test_health.py` | 2 |
-| `tests/test_auth.py` | 16 |
-| `tests/test_tenant_isolation.py` | 15 |
-| `tests/test_document_api.py` | 14 |
-| `tests/test_crypto_envelope.py` | 15 |
-| `tests/test_rate_limiter_metrics.py` | 25 |
+### Test Suite Breakdown (176 tests)
 
-To skip slow-marked tests:
+| Test File | Tests | Purpose |
+|-----------|-------|---------|
+| `tests/test_health.py` | 2 | Root metadata and health check endpoints |
+| `tests/test_auth.py` | 13 | Argon2id password hashing, JWT issue/verify, and auth endpoints |
+| `tests/test_crypto_envelope.py` | 5 | AES-256-GCM envelope encryption, key wrapping, AAD binding |
+| `tests/test_document_api.py` | 13 | Secure document CRUD operations and multi-tenant boundary checks |
+| `tests/test_tenant_isolation.py` | 15 | Direct database RLS enforcement, role privileges, and cross-tenant checks |
+| `tests/test_rate_limiter_metrics.py` | 25 | Redis fixed-window rate limiter, 429 Retry-After, and tenant telemetry |
+| `tests/test_limiter_strategies.py` | 6 | Concurrency, cost budget, and statement timeout limiting strategies |
+| `tests/test_dashboard.py` | 12 | Admin dashboard data endpoints and results parsing |
+| `tests/test_runs.py` | 7 | Background verification execution and live status polling |
+| `tests/test_demo.py` | 8 | Key lifecycle demonstration (seed, rotate, crypto-shred, read) |
+| `tests/test_traffic_demo.py` | 6 | Multi-tenant test traffic simulation and metrics comparison |
+| `tests/test_attack_demo.py` | 6 | Single attack execution, parameter validation, and layer detection |
+| `tests/test_config_check.py` | 10 | Security configuration audit and database permission checks |
+| `tests/test_verifier.py` | 10 | Verification runner logic, OpenAPI discovery, and leak detection |
+| `tests/test_mutation.py` | 7 | Mutation testing harness, baseline checks, and injected bug detection |
+| `tests/test_noisy_neighbour.py` | 1 | Noisy-neighbour battery smoke test |
+
+To skip slow or long-running integration tests:
 
 ```powershell
 pytest -v -m "not slow"
@@ -262,24 +310,62 @@ pytest -v -m "not slow"
 
 ---
 
-## 12. Running the Experiments
+## 12. Running the Experiments and Demonstrations
 
 All experiments require:
 - The `.env` file configured (section 7).
-- The lab database set up (for matrix, mutation, and noisy-neighbour experiments — see below).
+- The lab database set up for matrix and mutation experiments (see below).
 
-The **verifier** requires the main server to already be running (it connects to it via HTTP).  
+The **verifier**, **single attack demo**, and **traffic generator** require the main server to be running (`uvicorn app.main:app`).  
 The **layer-kill matrix**, **mutation tester**, and **noisy-neighbour runner** manage their own server subprocess.
 
-### Experiment 1: Verification Attack Suite
+### Demonstration 1: Single Attack by Hand (`scripts/single_attack.py`)
 
-Targets `tenantshield_db`. Requires a running server.
+Run an isolated, interactive attack by hand against a running server:
 
 ```powershell
-# Terminal 1 — start the server
+# Attack victim Beta from attacker Acme targeting the secure endpoint
+.venv\Scripts\python.exe scripts\single_attack.py --attacker Acme --victim Beta --action read --target-mode secure
+
+# Attack victim Beta from attacker Acme targeting the flawed/vulnerable endpoint
+.venv\Scripts\python.exe scripts\single_attack.py --attacker Acme --victim Beta --action read --target-mode vulnerable
+```
+
+Supported actions: `read`, `update`, `delete`, `create-into-victim`.
+
+### Demonstration 2: Paced Test Traffic Generator (`scripts/send_test_traffic.py`)
+
+Generate realistic multi-tenant traffic with paced requests, latency simulation, and 429 quota exhaustion:
+
+```powershell
+.venv\Scripts\python.exe scripts\send_test_traffic.py --progress-file progress.json --tenant demo
+```
+
+### Demonstration 3: Live Dynamic Benchmark (`scripts/live_benchmark.py`)
+
+Run a dynamic noisy-neighbour benchmark with configurable load and limiter strategies:
+
+```powershell
+.venv\Scripts\python.exe scripts\live_benchmark.py --progress-file benchmark_progress.json --noisy-tenant acme --victim-tenant beta --load-type expensive --duration 10
+```
+
+### Demonstration 4: Dedicated Demo Tenant Seeder (`scripts/seed_demo_tenant.py`)
+
+Provision or reset the isolated "Demo Co" tenant for key lifecycle and attack demonstrations:
+
+```powershell
+.venv\Scripts\python.exe scripts\seed_demo_tenant.py
+```
+
+### Experiment 1: Automated Verification Attack Suite
+
+Runs full automated verification against `tenantshield_db`. Requires a running server.
+
+```powershell
+# Terminal 1 - start the server
 uvicorn app.main:app --host 127.0.0.1 --port 8000
 
-# Terminal 2 — run the attack verifier
+# Terminal 2 - run the attack verifier
 .venv\Scripts\python.exe scripts\run_verifier.py
 ```
 
@@ -287,10 +373,10 @@ Results saved to: `results/verification_attack_report_<timestamp>.json`
 
 ### Experiment 2: Layer-Kill Matrix
 
-Tests isolation with every combination of Layer A and Layer B being on or off. Targets `tenantshield_lab`.
+Tests isolation with every combination of Layer A (application check) and Layer B (PostgreSQL RLS) being enabled or disabled. Targets `tenantshield_lab`.
 
 ```powershell
-# Step 1: Set up the isolated lab database (one-time or after a reset)
+# Step 1: Set up the isolated lab database
 .\scripts\setup_lab_db.ps1 -Action "setup"
 
 # Step 2: Run the matrix (manages its own server subprocess)
@@ -301,7 +387,7 @@ Results saved to: `results/layer_kill_matrix_<timestamp>.json` and `.csv`
 
 ### Experiment 3: Isolation Mutation Testing
 
-Injects deliberate bugs one at a time and verifies the attack suite detects them. Requires `APP_ENV=lab` (the runner sets this). Targets `tenantshield_lab`.
+Injects deliberate isolation bugs one at a time and verifies that the attack suite detects them. Requires `APP_ENV=lab`. Targets `tenantshield_lab`.
 
 ```powershell
 # Lab database must be set up first (see Experiment 2, Step 1)
@@ -326,20 +412,20 @@ Results saved to: `results/noisy_neighbour_runs_<timestamp>.json`, `noisy_neighb
 
 The following limitations apply to all results in `results/`. They do not prove or disprove general security.
 
-1. **Two tenants only.** All isolation tests involve exactly two tenants (Acme and Beta). Multi-tenant behaviour with three or more tenants has not been tested.
+1. **Two tenants in core matrix.** The baseline isolation tests primarily evaluate pairs of tenants (Acme, Beta, and Demo Co). Highly distributed multi-tenant behaviour across hundreds of concurrent tenants has not been modeled.
 
-2. **Attack direction.** The attack suite runs only in one direction: Tenant A (Acme) attempts to access Tenant B (Beta) resources. Attacks in the reverse direction are not separately reported.
+2. **Attack direction.** Baseline verifier runs execute attacks where Tenant A (Acme) attempts to access Tenant B (Beta) resources. Reverse direction and custom attacker/victim combinations are exercised in the interactive Single Attack Demo.
 
-3. **Small attack set.** The verifier runs 7 attacks per run (create injection, read, update, delete, admin action × 2, admin injection). It does not cover every possible attack vector.
+3. **Attack set scope.** The automated verifier exercises cross-tenant create injection, read, update, delete, admin bypass, and admin injection. It demonstrates defense-in-depth against common OWASP/multi-tenant vectors but does not cover every theoretical vector.
 
-4. **Small mutation set.** Mutation testing covers 5 injected bugs. Other realistic bugs are not tested.
+4. **Mutation set.** Mutation testing covers 5 injected isolation bugs. Additional edge-case bugs are not tested.
 
-5. **Single laptop, one worker.** All experiments ran on one laptop (AMD Ryzen 7 7840HS, 15.29 GB RAM, Windows 11) with one uvicorn worker. Results are not representative of multi-server or multi-worker deployments.
+5. **Single machine environment.** All experiments ran on one machine (AMD Ryzen 7 7840HS, 16 GB RAM, Windows 11) with one uvicorn worker. Results are not representative of distributed multi-node Kubernetes or serverless clusters.
 
-6. **Noisy-neighbour experiment scope.** The expensive-load case used a burst volume that stayed under the rate-limit quota. The claim about request-count limiting vs expensive queries could not be confirmed or refuted at the tested burst size (see `results/noisy_neighbour_report.md`, Claim Evaluation section).
+6. **Noisy-neighbour scope.** The expensive-load experiment used a burst volume that stayed under the rate-limit quota. The claim about request-count limiting vs expensive queries could not be confirmed or refuted at the tested burst size (see `results/noisy_neighbour_report.md`).
 
-7. **Some runs tested through in-process HTTP.** The mutation tester and layer-kill matrix issue HTTP calls via httpx to a subprocess server. Network stack effects are not captured.
+7. **Some runs tested through in-process HTTP.** The mutation tester and layer-kill matrix issue HTTP calls via httpx to a subprocess server. Physical network switch latency is not captured.
 
-8. **Results describe these specific runs only.** The numbers in `results/` are the output of the runs described in `results/noisy_neighbour_plan.md` and the timestamped JSON files. They do not constitute a proof of security or insecurity.
+8. **Results describe these specific runs only.** The numbers in `results/` are the output of the runs described in `results/` and timestamped JSON files. They do not constitute an absolute proof of security or insecurity.
 
-9. **No Docker testing.** The optional `docker-compose.yml` is provided for reference only and has not been tested. The documented setup targets native Windows PostgreSQL 16 and Memurai Developer.
+9. **No Docker testing.** The optional `docker-compose.yml` is provided for reference only. The primary supported environment is native Windows PostgreSQL 16 and Memurai Developer.
